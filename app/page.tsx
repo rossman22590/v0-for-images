@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Send, Settings, User, Bot, Paperclip, Eye, Plus, MessageSquare, Trash2 } from "lucide-react"
-import type { Conversation, ChatMessage, GeneratedImage } from "@/lib/indexeddb"
+import type { ChatMessage, GeneratedImage } from "@/lib/indexeddb"
 import {
   useConversations,
   useCurrentConversation,
@@ -27,8 +28,11 @@ export default function ImageEditor() {
   const [selectedVersion, setSelectedVersion] = useState<GeneratedImage | null>(null)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [isHistoryAnimating, setIsHistoryAnimating] = useState(false)
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([])
   const [localGeneratedImages, setLocalGeneratedImages] = useState<GeneratedImage[]>([])
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [tempFalKey, setTempFalKey] = useState("")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -43,43 +47,60 @@ export default function ImageEditor() {
   const falKey = settings?.falKey || ""
   const selectedModel = settings?.selectedModel || "Qwen Edit"
 
-  // Load conversation data when current conversation changes
+  useEffect(() => {
+    if (settingsDialogOpen) {
+      setTempFalKey(falKey)
+    }
+  }, [settingsDialogOpen, falKey])
+
   useEffect(() => {
     if (currentConversation) {
-      setLocalMessages(currentConversation.messages)
-      setLocalGeneratedImages(currentConversation.generatedImages)
-      setSelectedVersion(currentConversation.generatedImages[0] || null)
-    } else if (currentConversationId && localMessages.length === 0) {
-      // Initialize empty conversation
-      setLocalMessages([])
-      setLocalGeneratedImages([])
-      setSelectedVersion(null)
+      setLocalMessages(currentConversation.messages || [])
+      setLocalGeneratedImages(currentConversation.generatedImages || [])
+      if (currentConversation.generatedImages && currentConversation.generatedImages.length > 0) {
+        const latestImage = currentConversation.generatedImages[0]
+        setSelectedVersion(latestImage)
+        setSelectedImage(latestImage.url)
+      }
     }
-  }, [currentConversation, currentConversationId, localMessages.length])
+  }, [currentConversation])
 
-  // Load most recent conversation on mount
   useEffect(() => {
-    if (conversations.length > 0 && !currentConversationId) {
-      const latest = conversations[0]
-      setCurrentConversationId(latest.id)
+    if (currentConversationId && (localMessages.length > 0 || localGeneratedImages.length > 0)) {
+      const title =
+        localMessages.length > 0
+          ? localMessages[0].content.slice(0, 50) + (localMessages[0].content.length > 50 ? "..." : "")
+          : "New Conversation"
+
+      saveConversation.mutate({
+        id: currentConversationId,
+        title,
+        messages: localMessages,
+        generatedImages: localGeneratedImages,
+        updatedAt: Date.now(),
+      })
     }
-  }, [conversations, currentConversationId])
-
-  // Auto-save conversation when messages or images change
-  useEffect(() => {
-    if (!currentConversationId || (localMessages.length === 0 && localGeneratedImages.length === 0)) return
-
-    const conversation: Conversation = {
-      id: currentConversationId,
-      title: localMessages.length > 0 ? localMessages[0].content.slice(0, 50) + "..." : "New Conversation",
-      messages: localMessages,
-      generatedImages: localGeneratedImages,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }
-
-    saveConversation.mutate(conversation)
   }, [localMessages, localGeneratedImages, currentConversationId, saveConversation])
+
+  const handleSaveFalKey = useCallback(() => {
+    updateSettings.mutate({ falKey: tempFalKey })
+    setSettingsDialogOpen(false)
+  }, [tempFalKey, updateSettings])
+
+  const toggleHistory = useCallback(() => {
+    if (showHistory) {
+      setIsHistoryAnimating(true)
+      setTimeout(() => {
+        setShowHistory(false)
+        setIsHistoryAnimating(false)
+      }, 300)
+    } else {
+      setShowHistory(true)
+      setTimeout(() => {
+        setIsHistoryAnimating(true)
+      }, 10)
+    }
+  }, [showHistory])
 
   const createNewConversation = useCallback(() => {
     const newId = Date.now().toString()
@@ -91,10 +112,13 @@ export default function ImageEditor() {
     setPrompt("")
   }, [])
 
-  const loadConversation = useCallback((conversationId: string) => {
-    setCurrentConversationId(conversationId)
-    setShowHistory(false)
-  }, [])
+  const loadConversation = useCallback(
+    (conversationId: string) => {
+      setCurrentConversationId(conversationId)
+      // toggleHistory()
+    },
+    [], // Remove toggleHistory dependency
+  )
 
   const handleDeleteConversation = useCallback(
     (conversationId: string, e: React.MouseEvent) => {
@@ -137,7 +161,6 @@ export default function ImageEditor() {
       setCurrentConversationId(newId)
     }
 
-    // Add original image as v0 if first generation
     if (localGeneratedImages.length === 0 && selectedImage) {
       const originalImage: GeneratedImage = {
         id: Date.now().toString() + "_original",
@@ -217,8 +240,8 @@ export default function ImageEditor() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowHistory(!showHistory)}
-            className="text-zinc-400 hover:text-zinc-50 h-8 px-2"
+            onClick={toggleHistory}
+            className="text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 h-8 px-2"
           >
             <MessageSquare className="w-4 h-4" />
           </Button>
@@ -226,7 +249,7 @@ export default function ImageEditor() {
             variant="ghost"
             size="sm"
             onClick={createNewConversation}
-            className="text-zinc-400 hover:text-zinc-50 h-8 px-2"
+            className="text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 h-8 px-2"
           >
             <Plus className="w-4 h-4" />
           </Button>
@@ -236,28 +259,72 @@ export default function ImageEditor() {
           <h1 className="text-sm font-semibold text-zinc-50">Image Editor</h1>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowSettings(!showSettings)}
-          className="text-zinc-400 hover:text-zinc-50 h-8 px-2"
-        >
-          <Settings className="w-4 h-4" />
-        </Button>
+        <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-8 px-2 ${
+                !falKey
+                  ? "animate-pulse bg-orange-500/20 text-orange-400 hover:text-orange-300 hover:bg-orange-500/30 border border-orange-500/30"
+                  : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800"
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-50">
+            <DialogHeader>
+              <DialogTitle className="text-zinc-50">Settings</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="fal-key" className="text-sm text-zinc-300">
+                  FAL API Key
+                </Label>
+                <Input
+                  id="fal-key"
+                  type="password"
+                  placeholder="Enter your FAL API key"
+                  value={tempFalKey}
+                  onChange={(e) => setTempFalKey(e.target.value)}
+                  className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setSettingsDialogOpen(false)}
+                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveFalKey} className="bg-zinc-50 hover:bg-zinc-200 text-zinc-950">
+                  Save
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {showHistory && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowHistory(false)} />
-          <div className="fixed top-12 left-0 w-80 h-[calc(100vh-3rem)] bg-zinc-950 border-r border-zinc-800 flex flex-col z-50 shadow-2xl">
-            <div className="p-4 border-b border-zinc-800">
+          <div
+            className={`fixed inset-0 bg-black/20 z-40 transition-opacity duration-300 ${
+              isHistoryAnimating ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={toggleHistory}
+          />
+          <div
+            className={`fixed top-12 left-0 w-80 h-[calc(100vh-3rem)] bg-black border-t rounded-tr-lg border-r border-zinc-800 flex flex-col z-50 shadow-2xl transition-transform duration-300 ease-out ${
+              isHistoryAnimating ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <div className="p-4 border-b bg-neutral-900/30 border-zinc-800 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-50">Conversations</h2>
-              <Button
-                onClick={createNewConversation}
-                className="w-full mt-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-50"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Conversation
+              <Button onClick={createNewConversation} className="w-fit text-zinc-50">
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
@@ -293,65 +360,61 @@ export default function ImageEditor() {
 
       <div className="flex-1 flex">
         <div className="w-1/2 flex flex-col">
-          {showSettings && (
-            <div className="p-4 border-b border-zinc-800 bg-zinc-950/50">
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="fal-key" className="text-sm text-zinc-300">
-                    FAL API Key
-                  </Label>
-                  <Input
-                    id="fal-key"
-                    type="password"
-                    placeholder="Enter your FAL API key"
-                    value={falKey}
-                    onChange={(e) => updateSettings.mutate({ falKey: e.target.value })}
-                    className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {localMessages.length === 0 ? (
-              <div className="text-center text-zinc-500 mt-8">
-                <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Start a conversation by uploading an image and describing your edit</p>
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-zinc-500">
+                  <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Start a conversation by uploading an image and describing your edit</p>
+                </div>
               </div>
             ) : (
-              localMessages
-                .filter((message) => message.type === "user")
-                .map((message) => (
-                  <div key={message.id} className="flex gap-3 justify-start">
-                    <div className="flex gap-3 max-w-[80%]">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800">
-                        <User className="w-4 h-4 text-zinc-300" />
-                      </div>
-                      <div className="rounded-lg p-3 space-y-2 text-zinc-50">
-                        <p className="text-sm">{message.content}</p>
-                        {message.image && (
-                          <img
-                            src={message.image || "/placeholder.svg"}
-                            alt="Uploaded"
-                            className="max-w-48 rounded-lg border border-zinc-700"
-                          />
-                        )}
-                        <p className="text-xs text-zinc-500">{new Date(message.timestamp).toLocaleTimeString()}</p>
-                      </div>
+              localMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${message.type === "user" ? "justify-start" : "justify-start"}`}
+                >
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800">
+                    {message.type === "user" ? (
+                      <User className="w-4 h-4 text-zinc-300" />
+                    ) : (
+                      <Bot className="w-4 h-4 text-zinc-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 max-w-[80%]">
+                    <div className="rounded-lg p-3 space-y-2 text-zinc-50">
+                      <p className="text-sm">{message.content}</p>
+                      {message.image && (
+                        <img
+                          src={message.image || "/placeholder.svg"}
+                          alt="Uploaded"
+                          className="max-w-48 rounded-lg border border-zinc-700"
+                        />
+                      )}
+                      {message.generatedImage && (
+                        <img
+                          src={message.generatedImage.url || "/placeholder.svg"}
+                          alt="Generated"
+                          className="max-w-64 rounded-lg border border-zinc-700"
+                        />
+                      )}
+                      <p className="text-xs text-zinc-500">{new Date(message.timestamp).toLocaleTimeString()}</p>
                     </div>
                   </div>
-                ))
+                </div>
+              ))
             )}
             {generateImageMutation.isPending && (
               <div className="flex gap-3 justify-start">
                 <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
                   <Bot className="w-4 h-4 text-zinc-300" />
                 </div>
-                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-700">
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin w-4 h-4 border-2 border-zinc-600 border-t-transparent rounded-full"></div>
-                    <span className="text-sm text-zinc-300">Generating image...</span>
+                <div className="flex-1 max-w-[80%]">
+                  <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-700">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin w-4 h-4 border-2 border-zinc-600 border-t-transparent rounded-full"></div>
+                      <span className="text-sm text-zinc-300">Generating image...</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -381,7 +444,7 @@ export default function ImageEditor() {
                   generateImageMutation.isPending
                 }
                 size="lg"
-                className="flex-shrink-0 bg-zinc-50 hover:bg-zinc-200 text-zinc-950 disabled:bg-zinc-800 disabled:text-zinc-500"
+                className="flex-shrink-0 bg-zinc-50 hover:bg-zinc-200 text-zinc-900 disabled:bg-zinc-800 disabled:text-zinc-500"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -389,8 +452,11 @@ export default function ImageEditor() {
 
             <div className="flex gap-2 mt-2">
               <div>
-                <Select value={selectedModel} onValueChange={(value) => updateSettings.mutate({ selectedModel: value })}>
-                  <SelectTrigger className="w-32 h-8 bg-zinc-950 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap">
+                <Select
+                  value={selectedModel}
+                  onValueChange={(value) => updateSettings.mutate({ selectedModel: value })}
+                >
+                  <SelectTrigger className="w-fit h-8 bg-zinc-950 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap">
                     <SelectValue placeholder="Model" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-950 border-zinc-700">
@@ -399,71 +465,26 @@ export default function ImageEditor() {
                       className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
                     >
                       <div className="flex items-center gap-2">
-                        <svg
-                          className="w-3 h-3 flex-shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z"
-                            fill="currentColor"
-                          />
-                          <path
-                            d="M19 15L19.5 17L21 17.5L19.5 18L19 20L18.5 18L17 17.5L18.5 17L19 15Z"
-                            fill="currentColor"
-                          />
-                          <path d="M5 6L5.5 7.5L7 8L5.5 8.5L5 10L4.5 8.5L3 8L4.5 7.5L5 6Z" fill="currentColor" />
-                        </svg>
+                        <img src="/logos/qwen.svg" alt="Qwen" className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">Qwen Edit</span>
                       </div>
                     </SelectItem>
                     <SelectItem
-                      value="Kontext Pro Edit"
+                      value="Flux Kontext Pro"
                       className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
                     >
                       <div className="flex items-center gap-2">
-                        <svg
-                          className="w-3 h-3 flex-shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <rect
-                            x="3"
-                            y="3"
-                            width="18"
-                            height="18"
-                            rx="2"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            fill="none"
-                          />
-                          <path d="M9 9L15 15M15 9L9 15" stroke="currentColor" strokeWidth="2" />
-                          <circle cx="12" cy="12" r="2" fill="currentColor" />
-                        </svg>
-                        <span className="truncate">Kontext Pro Edit</span>
+                        <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">Flux Kontext Pro</span>
                       </div>
                     </SelectItem>
                     <SelectItem
-                      value="Seeedit"
+                      value="Bytedance Seededit"
                       className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
                     >
                       <div className="flex items-center gap-2">
-                        <svg
-                          className="w-3 h-3 flex-shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none" />
-                          <path
-                            d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          />
-                        </svg>
-                        <span className="truncate">Seeedit</span>
+                        <img src="/logos/bytedance.svg" alt="ByteDance" className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">Bytedance Seededit</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -473,19 +494,24 @@ export default function ImageEditor() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-shrink-0 border-zinc-700 text-zinc-400 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50"
+                  className="flex-shrink-0 h-9 px-3 border-zinc-700 text-zinc-400 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50"
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
                 {(selectedImage || (localGeneratedImages.length > 0 && localGeneratedImages[0])) && (
                   <div className="relative">
                     <img
                       src={selectedImage || localGeneratedImages[0]?.url || "/placeholder.svg"}
                       alt="Attachment"
-                      className="w-8 h-8 rounded-lg object-cover border border-zinc-700"
+                      className="w-8 h-9 rounded-lg object-cover border border-zinc-700"
                     />
                     {!selectedImage && localGeneratedImages.length > 0 && (
                       <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1 py-0.5 rounded text-xs font-bold">
