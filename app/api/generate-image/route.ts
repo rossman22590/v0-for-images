@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       "Kontext Pro Edit": "fal-ai/flux-pro/kontext",
     }
 
-    const endpoint = modelEndpoints[model] || "fal-ai/flux/dev/image-to-image"
+    const endpoint = modelEndpoints[model] || "fal-ai/flux-pro/kontext"
     console.log("[v0] Using model endpoint:", endpoint)
 
     let input = {

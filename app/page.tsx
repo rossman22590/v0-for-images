@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Send, Settings, User, Bot, Paperclip, Eye, Plus, MessageSquare, Trash2 } from "lucide-react"
-import type { ChatMessage, GeneratedImage } from "@/lib/indexeddb"
+import type { ChatMessage, GeneratedImage, Conversation } from "@/lib/indexeddb"
 import {
   useConversations,
   useCurrentConversation,
@@ -21,6 +21,12 @@ import {
 } from "@/lib/queries"
 
 export default function ImageEditor() {
+  const modelEndpoints = {
+    "Qwen Edit": "fal-ai/qwen-image-edit",
+    Seeedit: "fal-ai/bytedance/seededit/v3/edit-image",
+    "Kontext Pro Edit": "fal-ai/flux-pro/kontext",
+  }
+
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [prompt, setPrompt] = useState("")
   const [showSettings, setShowSettings] = useState(false)
@@ -45,7 +51,7 @@ export default function ImageEditor() {
   const generateImageMutation = useGenerateImage()
 
   const falKey = settings?.falKey || ""
-  const selectedModel = settings?.selectedModel || "Qwen Edit"
+  const selectedModel = settings?.selectedModel || "fal-ai/qwen-image-edit"
 
   useEffect(() => {
     if (settingsDialogOpen) {
@@ -81,10 +87,11 @@ export default function ImageEditor() {
         title,
         messages: limitedMessages,
         generatedImages: limitedImages,
+        createdAt: currentConversation?.createdAt || Date.now(),
         updatedAt: Date.now(),
       })
     }
-  }, [localMessages, localGeneratedImages, currentConversationId, saveConversation])
+  }, [localMessages, localGeneratedImages, currentConversationId, currentConversation?.createdAt, saveConversation])
 
   const handleSaveFalKey = useCallback(() => {
     updateSettings.mutate({ falKey: tempFalKey })
@@ -107,13 +114,24 @@ export default function ImageEditor() {
 
   const createNewConversation = useCallback(() => {
     const newId = Date.now().toString()
+    const newConversation: Conversation = {
+      id: newId,
+      title: "New Conversation",
+      messages: [],
+      generatedImages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    saveConversation.mutate(newConversation)
+
     setCurrentConversationId(newId)
     setLocalMessages([])
     setLocalGeneratedImages([])
     setSelectedImage(null)
     setSelectedVersion(null)
     setPrompt("")
-  }, [])
+  }, [saveConversation])
 
   const loadConversation = useCallback((conversationId: string) => {
     setCurrentConversationId(conversationId)
@@ -138,24 +156,38 @@ export default function ImageEditor() {
     [currentConversationId, conversations, loadConversation, createNewConversation, deleteConversation],
   )
 
-  const handleImageUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setSelectedImage(result)
+  const handleImageUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const result = e.target?.result as string
+          setSelectedImage(result)
+          if (localGeneratedImages.length === 0) {
+            const originalImage: GeneratedImage = {
+              id: Date.now().toString() + "_original",
+              url: result,
+              prompt: "Original image",
+              timestamp: Date.now(),
+              model: "Original",
+            }
+            setLocalGeneratedImages([originalImage])
+            setSelectedVersion(originalImage)
+          }
+        }
+        reader.onerror = () => {
+          console.error("[v0] FileReader error")
+          reader.abort()
+        }
+        reader.readAsDataURL(file)
       }
-      reader.onerror = () => {
-        console.error("[v0] FileReader error")
-        reader.abort()
+      if (event.target) {
+        event.target.value = ""
       }
-      reader.readAsDataURL(file)
-    }
-    if (event.target) {
-      event.target.value = ""
-    }
-  }, [])
+    },
+    [localGeneratedImages.length],
+  )
 
   const handleGenerateImage = useCallback(async () => {
     if (!falKey || !prompt) return
@@ -188,6 +220,10 @@ export default function ImageEditor() {
     }
     setLocalMessages((prev) => [...prev.slice(-49), userMessage])
 
+    const modelDisplayName =
+      Object.keys(modelEndpoints).find((key) => modelEndpoints[key as keyof typeof modelEndpoints] === selectedModel) ||
+      "Unknown Model"
+
     generateImageMutation.mutate(
       { falKey, prompt, imageUrl: attachmentImage, model: selectedModel },
       {
@@ -197,7 +233,7 @@ export default function ImageEditor() {
             url: data.imageUrl,
             prompt,
             timestamp: Date.now(),
-            model: selectedModel,
+            model: modelDisplayName,
           }
 
           const assistantMessage: ChatMessage = {
@@ -223,10 +259,26 @@ export default function ImageEditor() {
         },
         onError: (error) => {
           console.error("Error generating image:", error)
+          const errorMessage: ChatMessage = {
+            id: Date.now().toString() + "_error",
+            type: "assistant",
+            content: `Sorry, there was an error generating your image: ${error.message || "Unknown error occurred"}`,
+            timestamp: Date.now(),
+          }
+          setLocalMessages((prev) => [...prev.slice(-49), errorMessage])
         },
       },
     )
-  }, [falKey, prompt, selectedImage, localGeneratedImages, currentConversationId, selectedModel, generateImageMutation])
+  }, [
+    falKey,
+    prompt,
+    selectedImage,
+    localGeneratedImages,
+    currentConversationId,
+    selectedModel,
+    generateImageMutation,
+    modelEndpoints,
+  ])
 
   return (
     <div
@@ -347,7 +399,7 @@ export default function ImageEditor() {
             }`}
           >
             <div className="p-4 border-b bg-neutral-900/30 border-zinc-800 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-50">Conversations</h2>
+              <h2 className="text-lg font-semibold text-zinc-50">History</h2>
               <Button onClick={createNewConversation} className="w-fit text-zinc-50">
                 <Plus className="w-4 h-4" />
               </Button>
@@ -413,10 +465,10 @@ export default function ImageEditor() {
                           {message.generatedImage.model === "Qwen Edit" && (
                             <img src="/logos/qwen.svg" alt="Qwen" className="w-4 h-4 flex-shrink-0" />
                           )}
-                          {message.generatedImage.model === "Flux Kontext Pro" && (
+                          {message.generatedImage.model === "Kontext Pro Edit" && (
                             <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-4 h-4 flex-shrink-0" />
                           )}
-                          {message.generatedImage.model === "Bytedance Seededit" && (
+                          {message.generatedImage.model === "Seeedit" && (
                             <img src="/logos/bytedance.svg" alt="ByteDance" className="w-4 h-4 flex-shrink-0" />
                           )}
                           <span className="text-xs text-zinc-400 font-medium">{message.generatedImage.model}</span>
@@ -502,7 +554,7 @@ export default function ImageEditor() {
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-950 border-zinc-700">
                     <SelectItem
-                      value="Qwen Edit"
+                      value="fal-ai/qwen-image-edit"
                       className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
                     >
                       <div className="flex items-center gap-2">
@@ -511,21 +563,21 @@ export default function ImageEditor() {
                       </div>
                     </SelectItem>
                     <SelectItem
-                      value="Flux Kontext Pro"
+                      value="fal-ai/flux-pro/kontext"
                       className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
                     >
                       <div className="flex items-center gap-2">
                         <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">Flux Kontext Pro</span>
+                        <span className="truncate">Kontext Pro Edit</span>
                       </div>
                     </SelectItem>
                     <SelectItem
-                      value="Bytedance Seededit"
+                      value="fal-ai/bytedance/seededit/v3/edit-image"
                       className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
                     >
                       <div className="flex items-center gap-2">
                         <img src="/logos/bytedance.svg" alt="ByteDance" className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">Bytedance Seededit</span>
+                        <span className="truncate">Seeedit</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -592,24 +644,18 @@ export default function ImageEditor() {
           </div>
 
           <div className="flex-1 relative p-6 flex items-center justify-center">
-            {localGeneratedImages.length === 0 ? (
-              <div className="text-center text-zinc-500">
-                <Eye className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p>Generated images will appear here</p>
-                <p className="text-sm mt-2">Start by uploading an image and describing your edit</p>
-              </div>
-            ) : (
+            {selectedImage || localGeneratedImages.length > 0 ? (
               <div className="relative">
                 <img
                   src={
                     hoveredVersion
                       ? localGeneratedImages.find((img) => img.id === hoveredVersion)?.url || "/placeholder.svg"
-                      : (selectedVersion || localGeneratedImages[0])?.url || "/placeholder.svg"
+                      : (selectedVersion || localGeneratedImages[0])?.url || selectedImage || "/placeholder.svg"
                   }
                   alt="Preview image"
                   className="max-w-full max-h-[500px] object-contain rounded-lg shadow-2xl"
                 />
-                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-zinc-700">
+                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-zinc-800">
                   v
                   {hoveredVersion
                     ? (() => {
@@ -622,18 +668,27 @@ export default function ImageEditor() {
                           1 -
                           localGeneratedImages.findIndex((img) => img.id === selectedVersion.id)
                         : 0
-                      : localGeneratedImages.length - 1}
+                      : localGeneratedImages.length > 0
+                        ? localGeneratedImages.length - 1
+                        : 0}
                 </div>
+              </div>
+            ) : (
+              <div className="text-center text-zinc-500">
+                <Eye className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>Generated images will appear here</p>
+                <p className="text-sm mt-2">Start by uploading an image and describing your edit</p>
               </div>
             )}
 
-            {localGeneratedImages.length > 0 && (
+            {(selectedImage || localGeneratedImages.length > 0) && (
               <div className="absolute top-0 right-0 bg-zinc-950/95 backdrop-blur-sm border-l border-zinc-800 p-2 h-full">
                 <div className="flex flex-col gap-1">
                   {localGeneratedImages.map((image, index) => {
                     const versionNumber = localGeneratedImages.length - 1 - index
                     const isSelected = selectedVersion?.id === image.id
-                    const isOriginalHighlighted = !selectedVersion && versionNumber === 0
+                    const isOriginalHighlighted =
+                      !selectedVersion && versionNumber === 0 && localGeneratedImages.length === 1
                     const shouldHighlight = isSelected || isOriginalHighlighted
 
                     return (
@@ -685,14 +740,14 @@ export default function ImageEditor() {
                                   {image.model === "Qwen Edit" && (
                                     <img src="/logos/qwen.svg" alt="Qwen" className="w-4 h-4 flex-shrink-0" />
                                   )}
-                                  {image.model === "Flux Kontext Pro" && (
+                                  {image.model === "Kontext Pro Edit" && (
                                     <img
                                       src="/logos/bfl.svg"
                                       alt="Black Forest Labs"
                                       className="w-4 h-4 flex-shrink-0"
                                     />
                                   )}
-                                  {image.model === "Bytedance Seededit" && (
+                                  {image.model === "Seeedit" && (
                                     <img src="/logos/bytedance.svg" alt="ByteDance" className="w-4 h-4 flex-shrink-0" />
                                   )}
                                   <div className="flex items-center gap-1">
