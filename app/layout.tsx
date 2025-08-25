@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Image Editor",
+  title: "v0 for Images",
   description: "AI-powered image editing interface",
     generator: 'v0.app'
 }

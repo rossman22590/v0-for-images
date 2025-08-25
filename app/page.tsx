@@ -41,6 +41,7 @@ export default function ImageEditor() {
   const [tempFalKey, setTempFalKey] = useState("")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: conversations = [], refetch: refetchConversations } = useConversations()
   const { data: currentConversation } = useCurrentConversation(currentConversationId)
@@ -231,6 +232,28 @@ export default function ImageEditor() {
     [localGeneratedImages.length],
   )
 
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1)
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.3)
+    } catch (error) {
+      console.log("[v0] Audio notification not supported:", error)
+    }
+  }, [])
+
   const handleGenerateImage = useCallback(async () => {
     if (!falKey || !prompt) return
 
@@ -335,6 +358,8 @@ export default function ImageEditor() {
           setSelectedVersion(newImage)
           setSelectedImage(newImage.url)
           setPrompt("")
+
+          playNotificationSound()
         },
         onError: (error) => {
           console.error("Error generating image:", error)
@@ -361,7 +386,16 @@ export default function ImageEditor() {
     saveConversation,
     refetchConversations,
     currentConversation?.createdAt,
+    playNotificationSound,
   ])
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [localMessages, scrollToBottom])
 
   return (
     <div
@@ -453,7 +487,7 @@ export default function ImageEditor() {
                 <Button
                   variant="outline"
                   onClick={() => setSettingsDialogOpen(false)}
-                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50 transition-all duration-200"
+                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 bg-zinc-950/80 hover:text-zinc-50 transition-all duration-200"
                 >
                   Cancel
                 </Button>
@@ -526,7 +560,7 @@ export default function ImageEditor() {
       )}
 
       <div className="flex-1 flex">
-        <div className="w-1/2 flex flex-col">
+        <div className="w-1/3 flex flex-col" style={{ minWidth: "400px" }}>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-11rem)]">
             {localMessages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
@@ -611,6 +645,7 @@ export default function ImageEditor() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/20 backdrop-blur-sm">
@@ -732,7 +767,7 @@ export default function ImageEditor() {
           </div>
         </div>
 
-        <div className="w-1/2 flex flex-col relative overflow-hidden border-t border-l border-zinc-800/80 rounded-tl-lg bg-zinc-950/50 backdrop-blur-sm">
+        <div className="w-2/3 flex flex-col relative overflow-hidden border-t border-l border-zinc-800/80 rounded-tl-lg bg-zinc-950/50 backdrop-blur-sm">
           <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-sm">
             <h2 className="text-lg font-semibold text-zinc-50">Preview</h2>
             <p className="text-sm text-zinc-400">
