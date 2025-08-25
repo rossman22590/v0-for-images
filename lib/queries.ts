@@ -79,11 +79,24 @@ export function useDeleteConversation() {
 
   return useMutation({
     mutationFn: async (conversationId: string) => {
+      console.log("[v0] Deleting conversation from database:", conversationId)
       await conversationDB.deleteConversation(conversationId)
+      console.log("[v0] Successfully deleted from database:", conversationId)
       return conversationId
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations })
+    onSuccess: async (conversationId) => {
+      console.log("[v0] Invalidating queries after delete:", conversationId)
+      queryClient.removeQueries({ queryKey: queryKeys.conversation(conversationId) })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations })
+      await queryClient.refetchQueries({ queryKey: queryKeys.conversations, type: "active" })
+      // Force immediate cache update
+      queryClient.setQueryData(queryKeys.conversations, (oldData: Conversation[] | undefined) => {
+        if (!oldData) return []
+        return oldData.filter((conv) => conv.id !== conversationId)
+      })
+    },
+    onError: (error) => {
+      console.error("[v0] Delete conversation mutation failed:", error)
     },
   })
 }

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Send, Settings, User, Bot, Paperclip, Eye, Plus, MessageSquare, Trash2 } from "lucide-react"
+import { Send, Settings, User, Bot, Paperclip, Eye, Plus, MessageSquare, Trash2, Download } from "lucide-react"
 import type { ChatMessage, GeneratedImage, Conversation } from "@/lib/indexeddb"
 import {
   useConversations,
@@ -42,7 +42,7 @@ export default function ImageEditor() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { data: conversations = [] } = useConversations()
+  const { data: conversations = [], refetch: refetchConversations } = useConversations()
   const { data: currentConversation } = useCurrentConversation(currentConversationId)
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
@@ -82,16 +82,30 @@ export default function ImageEditor() {
       const limitedMessages = localMessages.slice(-50)
       const limitedImages = localGeneratedImages.slice(0, 20)
 
-      saveConversation.mutate({
-        id: currentConversationId,
-        title,
-        messages: limitedMessages,
-        generatedImages: limitedImages,
-        createdAt: currentConversation?.createdAt || Date.now(),
-        updatedAt: Date.now(),
-      })
+      saveConversation.mutate(
+        {
+          id: currentConversationId,
+          title,
+          messages: limitedMessages,
+          generatedImages: limitedImages,
+          createdAt: currentConversation?.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          onSuccess: () => {
+            refetchConversations()
+          },
+        },
+      )
     }
-  }, [localMessages, localGeneratedImages, currentConversationId, currentConversation?.createdAt, saveConversation])
+  }, [
+    localMessages,
+    localGeneratedImages,
+    currentConversationId,
+    currentConversation?.createdAt,
+    saveConversation,
+    refetchConversations,
+  ])
 
   const handleSaveFalKey = useCallback(() => {
     updateSettings.mutate({ falKey: tempFalKey })
@@ -123,7 +137,11 @@ export default function ImageEditor() {
       updatedAt: Date.now(),
     }
 
-    saveConversation.mutate(newConversation)
+    saveConversation.mutate(newConversation, {
+      onSuccess: () => {
+        refetchConversations()
+      },
+    })
 
     setCurrentConversationId(newId)
     setLocalMessages([])
@@ -131,7 +149,7 @@ export default function ImageEditor() {
     setSelectedImage(null)
     setSelectedVersion(null)
     setPrompt("")
-  }, [saveConversation])
+  }, [saveConversation, refetchConversations])
 
   const loadConversation = useCallback((conversationId: string) => {
     setCurrentConversationId(conversationId)
@@ -140,20 +158,44 @@ export default function ImageEditor() {
   const handleDeleteConversation = useCallback(
     (conversationId: string, e: React.MouseEvent) => {
       e.stopPropagation()
+      if (deleteConversation.isPending) {
+        return
+      }
+
+      console.log("[v0] Attempting to delete conversation:", conversationId)
+
       deleteConversation.mutate(conversationId, {
         onSuccess: () => {
+          console.log("[v0] Successfully deleted conversation:", conversationId)
+          refetchConversations()
+
           if (currentConversationId === conversationId) {
+            console.log("[v0] Deleted conversation was current, switching to another")
             if (conversations.length > 1) {
               const remaining = conversations.filter((c) => c.id !== conversationId)
-              loadConversation(remaining[0].id)
+              if (remaining.length > 0) {
+                loadConversation(remaining[0].id)
+              } else {
+                createNewConversation()
+              }
             } else {
               createNewConversation()
             }
           }
         },
+        onError: (error) => {
+          console.error("[v0] Failed to delete conversation:", error)
+        },
       })
     },
-    [currentConversationId, conversations, loadConversation, createNewConversation, deleteConversation],
+    [
+      currentConversationId,
+      conversations,
+      loadConversation,
+      createNewConversation,
+      deleteConversation,
+      refetchConversations,
+    ],
   )
 
   const handleImageUpload = useCallback(
@@ -195,9 +237,26 @@ export default function ImageEditor() {
     const attachmentImage = selectedImage || (localGeneratedImages.length > 0 ? localGeneratedImages[0].url : null)
     if (!attachmentImage) return
 
-    if (!currentConversationId) {
-      const newId = Date.now().toString()
-      setCurrentConversationId(newId)
+    let conversationId = currentConversationId
+    if (!conversationId) {
+      conversationId = Date.now().toString()
+      setCurrentConversationId(conversationId)
+
+      // Save empty conversation immediately to make it appear in history
+      const newConversation: Conversation = {
+        id: conversationId,
+        title: "New Conversation",
+        messages: [],
+        generatedImages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      saveConversation.mutate(newConversation, {
+        onSuccess: () => {
+          refetchConversations()
+        },
+      })
     }
 
     if (localGeneratedImages.length === 0 && selectedImage) {
@@ -218,7 +277,27 @@ export default function ImageEditor() {
       image: attachmentImage,
       timestamp: Date.now(),
     }
-    setLocalMessages((prev) => [...prev.slice(-49), userMessage])
+
+    const updatedMessages = [...localMessages.slice(-49), userMessage]
+    setLocalMessages(updatedMessages)
+
+    // Save conversation immediately with the user message to update history
+    const title = prompt.slice(0, 50) + (prompt.length > 50 ? "..." : "")
+    saveConversation.mutate(
+      {
+        id: conversationId,
+        title,
+        messages: updatedMessages,
+        generatedImages: localGeneratedImages,
+        createdAt: currentConversation?.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      },
+      {
+        onSuccess: () => {
+          refetchConversations()
+        },
+      },
+    )
 
     const modelDisplayName =
       Object.keys(modelEndpoints).find((key) => modelEndpoints[key as keyof typeof modelEndpoints] === selectedModel) ||
@@ -278,6 +357,10 @@ export default function ImageEditor() {
     selectedModel,
     generateImageMutation,
     modelEndpoints,
+    localMessages, // Added localMessages to dependencies
+    saveConversation,
+    refetchConversations,
+    currentConversation?.createdAt,
   ])
 
   return (
@@ -422,7 +505,10 @@ export default function ImageEditor() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-400"
+                      disabled={deleteConversation.isPending}
+                      className={`opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-400 ${
+                        deleteConversation.isPending ? "cursor-not-allowed opacity-50" : ""
+                      }`}
                       onClick={(e) => handleDeleteConversation(conversation.id, e)}
                     >
                       <Trash2 className="w-3 h-3" />
@@ -672,6 +758,34 @@ export default function ImageEditor() {
                         ? localGeneratedImages.length - 1
                         : 0}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const currentImage = hoveredVersion
+                      ? localGeneratedImages.find((img) => img.id === hoveredVersion)
+                      : selectedVersion || localGeneratedImages[0]
+
+                    if (currentImage?.url || selectedImage) {
+                      const link = document.createElement("a")
+                      link.href = currentImage?.url || selectedImage || ""
+                      const versionNumber = currentImage
+                        ? localGeneratedImages.findIndex((img) => img.id === currentImage.id) >= 0
+                          ? localGeneratedImages.length -
+                            1 -
+                            localGeneratedImages.findIndex((img) => img.id === currentImage.id)
+                          : 0
+                        : 0
+                      link.download = `image-edit-v${versionNumber}-${Date.now()}.png`
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                    }
+                  }}
+                  className="absolute top-4 right-4 bg-zinc-950/90 hover:bg-zinc-800/90 text-zinc-50 border border-zinc-800 h-8 w-8 p-0"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
               </div>
             ) : (
               <div className="text-center text-zinc-500">
@@ -699,9 +813,7 @@ export default function ImageEditor() {
                         onMouseLeave={() => setHoveredVersion(null)}
                       >
                         <div
-                          className={`w-12 h-12 relative cursor-pointer hover:scale-110 transition-transform ${
-                            shouldHighlight ? "border-2 border-zinc-50 rounded-lg" : ""
-                          }`}
+                          className={'w-12 h-12 relative cursor-pointer hover:scale-110 transition-transform'}
                           onClick={() => {
                             setSelectedVersion(image)
                             setSelectedImage(image.url)
@@ -711,7 +823,7 @@ export default function ImageEditor() {
                             src={image.url || "/placeholder.svg"}
                             alt={`Version ${versionNumber}`}
                             className={`w-full h-full object-cover rounded border ${
-                              shouldHighlight ? "border-zinc-50" : "border-zinc-700"
+                              shouldHighlight ? "border-white" : "border-zinc-700"
                             }`}
                           />
                           <div
