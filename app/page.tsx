@@ -550,7 +550,7 @@ export default function ImageEditor() {
                   disabled={generateImageMutation.isPending}
                 >
                   <SelectTrigger className="w-fit h-8 bg-zinc-950 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
-                    <SelectValue placeholder="Model" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-950 border-zinc-700">
                     <SelectItem
