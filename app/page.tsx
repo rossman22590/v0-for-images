@@ -89,10 +89,9 @@ export default function ImageEditor() {
 
   const toggleHistory = useCallback(() => {
     if (showHistory) {
-      setIsHistoryAnimating(true)
+      setIsHistoryAnimating(false)
       setTimeout(() => {
         setShowHistory(false)
-        setIsHistoryAnimating(false)
       }, 300)
     } else {
       setShowHistory(true)
@@ -282,6 +281,17 @@ export default function ImageEditor() {
                 <Label htmlFor="fal-key" className="text-sm text-zinc-300">
                   FAL API Key
                 </Label>
+                <p className="text-xs text-zinc-500 mt-1 mb-2">
+                  Get your API key from{" "}
+                  <a
+                    href="https://fal.ai/dashboard/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    fal.ai/dashboard/keys
+                  </a>
+                </p>
                 <Input
                   id="fal-key"
                   type="password"
@@ -295,7 +305,7 @@ export default function ImageEditor() {
                 <Button
                   variant="outline"
                   onClick={() => setSettingsDialogOpen(false)}
-                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50"
                 >
                   Cancel
                 </Button>
@@ -360,7 +370,7 @@ export default function ImageEditor() {
 
       <div className="flex-1 flex">
         <div className="w-1/2 flex flex-col">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-11rem)]">
             {localMessages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center text-zinc-500">
@@ -374,15 +384,15 @@ export default function ImageEditor() {
                   key={message.id}
                   className={`flex gap-3 ${message.type === "user" ? "justify-start" : "justify-start"}`}
                 >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800 mt-0">
                     {message.type === "user" ? (
                       <User className="w-4 h-4 text-zinc-300" />
                     ) : (
                       <Bot className="w-4 h-4 text-zinc-300" />
                     )}
                   </div>
-                  <div className="flex-1 max-w-[80%]">
-                    <div className="rounded-lg p-3 space-y-2 text-zinc-50">
+                  <div className="max-w-[80%]">
+                    <div className="rounded-lg px-3 pb-3  space-y-2 text-zinc-50">
                       <p className="text-sm">{message.content}</p>
                       {message.image && (
                         <img
@@ -410,9 +420,9 @@ export default function ImageEditor() {
                   <Bot className="w-4 h-4 text-zinc-300" />
                 </div>
                 <div className="flex-1 max-w-[80%]">
-                  <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-700">
+                  <div className="bg-zinc-950 rounded-lg px-3 pb-3 pt-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="animate-spin w-4 h-4 border-2 border-zinc-600 border-t-transparent rounded-full"></div>
+                      <img src="/logos/fal.svg" alt="Loading" className="w-4 h-4 animate-spin" />
                       <span className="text-sm text-zinc-300">Generating image...</span>
                     </div>
                   </div>
@@ -450,7 +460,7 @@ export default function ImageEditor() {
               </Button>
             </div>
 
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 relative">
               <div>
                 <Select
                   value={selectedModel}
@@ -520,6 +530,18 @@ export default function ImageEditor() {
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="absolute bottom-0 right-0 flex items-center gap-1 text-xs text-zinc-500">
+                <span>Powered by</span>
+                <a
+                  href="https://fal.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:opacity-100 transition-opacity"
+                >
+                  <img src="/logos/fal-logo.svg" alt="fal" className="h-3 opacity-70" />
+                </a>
               </div>
             </div>
           </div>
