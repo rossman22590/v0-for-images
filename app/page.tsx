@@ -390,7 +390,7 @@ export default function ImageEditor() {
             variant="ghost"
             size="sm"
             onClick={toggleHistory}
-            className="text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 h-8 px-2"
+            className="text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/80 h-8 px-2 transition-all duration-200 hover:scale-105"
           >
             <MessageSquare className="w-4 h-4" />
           </Button>
@@ -398,25 +398,23 @@ export default function ImageEditor() {
             variant="ghost"
             size="sm"
             onClick={createNewConversation}
-            className="text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 h-8 px-2"
+            className="text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/80 h-8 px-2 transition-all duration-200 hover:scale-105"
           >
             <Plus className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className="text-center">
-          <h1 className="text-sm font-semibold text-zinc-50">Image Editor</h1>
-        </div>
+        <div></div>
 
         <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
           <DialogTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className={`h-8 px-2 ${
+              className={`h-8 px-2 transition-all duration-200 hover:scale-105 ${
                 !falKey
-                  ? "animate-pulse bg-orange-500/20 text-orange-400 hover:text-orange-300 hover:bg-orange-500/30 border border-orange-500/30"
-                  : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800"
+                  ? "animate-pulse bg-orange-500/20 text-orange-400 hover:text-orange-300 hover:bg-orange-500/30 border border-orange-500/30 shadow-lg shadow-orange-500/20"
+                  : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/80"
               }`}
             >
               <Settings className="w-4 h-4" />
@@ -437,7 +435,7 @@ export default function ImageEditor() {
                     href="https://fal.ai/dashboard/keys"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 underline"
+                    className="text-blue-400 hover:text-blue-300 underline transition-colors duration-200"
                   >
                     fal.ai/dashboard/keys
                   </a>
@@ -448,18 +446,21 @@ export default function ImageEditor() {
                   placeholder="Enter your FAL API key"
                   value={tempFalKey}
                   onChange={(e) => setTempFalKey(e.target.value)}
-                  className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0"
+                  className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 transition-colors duration-200"
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setSettingsDialogOpen(false)}
-                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50"
+                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50 transition-all duration-200"
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleSaveFalKey} className="bg-zinc-50 hover:bg-zinc-200 text-zinc-950">
+                <Button
+                  onClick={handleSaveFalKey}
+                  className="bg-zinc-50 hover:bg-zinc-200 text-zinc-950 transition-all duration-200 hover:scale-105"
+                >
                   Save
                 </Button>
               </div>
@@ -471,19 +472,22 @@ export default function ImageEditor() {
       {showHistory && (
         <>
           <div
-            className={`fixed inset-0 bg-black/20 z-40 transition-opacity duration-300 ${
-              isHistoryAnimating ? "opacity-100" : "opacity-0"
+            className={`fixed inset-0 bg-black/30 z-40 transition-all duration-300 ease-out ${
+              isHistoryAnimating ? "opacity-100 backdrop-blur-sm" : "opacity-0"
             }`}
             onClick={toggleHistory}
           />
           <div
-            className={`fixed top-12 left-0 w-80 h-[calc(100vh-3rem)] bg-black border-t rounded-tr-lg border-r border-zinc-800 flex flex-col z-50 shadow-2xl transition-transform duration-300 ease-out ${
+            className={`fixed top-12 left-0 w-80 h-[calc(100vh-3rem)] bg-zinc-950/95 backdrop-blur-xl border-t rounded-tr-lg border-r border-zinc-800/80 flex flex-col z-50 shadow-2xl transition-all duration-300 ease-out ${
               isHistoryAnimating ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="p-4 border-b bg-neutral-900/30 border-zinc-800 flex items-center justify-between">
+            <div className="p-4 border-b bg-zinc-900/50 border-zinc-800/80 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-50">History</h2>
-              <Button onClick={createNewConversation} className="w-fit text-zinc-50">
+              <Button
+                onClick={createNewConversation}
+                className="w-fit text-zinc-50 hover:scale-105 transition-transform duration-200"
+              >
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -491,8 +495,8 @@ export default function ImageEditor() {
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className={`p-3 rounded-lg cursor-pointer mb-2 group hover:bg-zinc-800 ${
-                    currentConversationId === conversation.id ? "bg-zinc-800" : ""
+                  className={`p-3 rounded-lg cursor-pointer mb-2 group hover:bg-zinc-800/80 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${
+                    currentConversationId === conversation.id ? "bg-zinc-800/60 ring-1 ring-zinc-700" : ""
                   }`}
                   onClick={() => loadConversation(conversation.id)}
                 >
@@ -506,7 +510,7 @@ export default function ImageEditor() {
                       variant="ghost"
                       size="sm"
                       disabled={deleteConversation.isPending}
-                      className={`opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-400 ${
+                      className={`opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 hover:scale-110 ${
                         deleteConversation.isPending ? "cursor-not-allowed opacity-50" : ""
                       }`}
                       onClick={(e) => handleDeleteConversation(conversation.id, e)}
@@ -535,7 +539,7 @@ export default function ImageEditor() {
               localMessages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${message.type === "user" ? "justify-start" : "justify-start"}`}
+                  className={`flex gap-3 ${message.type === "user" ? "justify-start" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800 mt-0">
                     {message.type === "user" ? (
@@ -565,14 +569,14 @@ export default function ImageEditor() {
                         <img
                           src={message.image || "/placeholder.svg"}
                           alt="Uploaded"
-                          className="max-w-48 rounded-lg border border-zinc-700"
+                          className="max-w-48 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors duration-200"
                         />
                       )}
                       {message.generatedImage && (
                         <img
                           src={message.generatedImage.url || "/placeholder.svg"}
                           alt="Generated"
-                          className="max-w-64 rounded-lg border border-zinc-700"
+                          className="max-w-64 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors duration-200"
                         />
                       )}
                       <p className="text-xs text-zinc-500">{new Date(message.timestamp).toLocaleTimeString()}</p>
@@ -582,7 +586,7 @@ export default function ImageEditor() {
               ))
             )}
             {generateImageMutation.isPending && (
-              <div className="flex gap-3 justify-start">
+              <div className="flex gap-3 justify-start animate-in slide-in-from-bottom-2 duration-300">
                 <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
                   <Bot className="w-4 h-4 text-zinc-300" />
                 </div>
@@ -591,6 +595,17 @@ export default function ImageEditor() {
                     <div className="flex items-center gap-2">
                       <img src="/logos/fal.svg" alt="Loading" className="w-4 h-4 animate-spin" />
                       <span className="text-sm text-zinc-300">Generating image...</span>
+                      <div className="flex gap-1 ml-2">
+                        <div className="w-1 h-1 bg-zinc-400 rounded-full animate-pulse"></div>
+                        <div
+                          className="w-1 h-1 bg-zinc-400 rounded-full animate-pulse"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
+                        <div
+                          className="w-1 h-1 bg-zinc-400 rounded-full animate-pulse"
+                          style={{ animationDelay: "0.4s" }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -598,14 +613,14 @@ export default function ImageEditor() {
             )}
           </div>
 
-          <div className="p-4 border-t border-zinc-800 bg-neutral-900/20">
+          <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/20 backdrop-blur-sm">
             <div className="flex gap-2">
               <Textarea
                 placeholder="Describe how you want to edit the image..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={generateImageMutation.isPending}
-                className="flex-1 min-h-[60px] resize-none bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 min-h-[60px] resize-none bg-zinc-950/80 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:shadow-lg focus:shadow-zinc-800/50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
@@ -622,7 +637,7 @@ export default function ImageEditor() {
                   generateImageMutation.isPending
                 }
                 size="lg"
-                className="flex-shrink-0 bg-zinc-50 hover:bg-zinc-200 text-zinc-900 disabled:bg-zinc-800 disabled:text-zinc-500"
+                className="flex-shrink-0 bg-zinc-50 hover:bg-zinc-200 text-zinc-900 disabled:bg-zinc-800 disabled:text-zinc-500 transition-all duration-200 hover:scale-105 hover:shadow-lg disabled:hover:scale-100"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -635,13 +650,13 @@ export default function ImageEditor() {
                   onValueChange={(value) => updateSettings.mutate({ selectedModel: value })}
                   disabled={generateImageMutation.isPending}
                 >
-                  <SelectTrigger className="w-fit h-8 bg-zinc-950 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                  <SelectTrigger className="w-fit h-8 bg-zinc-950/80 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-900/80 transition-colors duration-200">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-zinc-700">
+                  <SelectContent className="bg-zinc-950/95 backdrop-blur-xl border-zinc-700">
                     <SelectItem
                       value="fal-ai/qwen-image-edit"
-                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
+                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
                     >
                       <div className="flex items-center gap-2">
                         <img src="/logos/qwen.svg" alt="Qwen" className="w-3 h-3 flex-shrink-0" />
@@ -650,7 +665,7 @@ export default function ImageEditor() {
                     </SelectItem>
                     <SelectItem
                       value="fal-ai/flux-pro/kontext"
-                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
+                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
                     >
                       <div className="flex items-center gap-2">
                         <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-3 h-3 flex-shrink-0" />
@@ -659,7 +674,7 @@ export default function ImageEditor() {
                     </SelectItem>
                     <SelectItem
                       value="fal-ai/bytedance/seededit/v3/edit-image"
-                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap"
+                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
                     >
                       <div className="flex items-center gap-2">
                         <img src="/logos/bytedance.svg" alt="ByteDance" className="w-3 h-3 flex-shrink-0" />
@@ -675,7 +690,7 @@ export default function ImageEditor() {
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={generateImageMutation.isPending}
-                  className="flex-shrink-0 h-9 px-3 border-zinc-700 text-zinc-400 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-shrink-0 h-9 px-3 border-zinc-700 text-zinc-400 hover:bg-zinc-800/80 bg-zinc-950/80 hover:text-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
@@ -691,7 +706,7 @@ export default function ImageEditor() {
                     <img
                       src={selectedImage || localGeneratedImages[0]?.url || "/placeholder.svg"}
                       alt="Attachment"
-                      className="w-8 h-9 rounded-lg object-cover border border-zinc-700"
+                      className="w-8 h-9 rounded-lg object-cover border border-zinc-700 hover:border-zinc-600 transition-colors duration-200"
                     />
                     {!selectedImage && localGeneratedImages.length > 0 && (
                       <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1 py-0.5 rounded text-xs font-bold">
@@ -708,7 +723,7 @@ export default function ImageEditor() {
                   href="https://fal.ai"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:opacity-100 transition-opacity"
+                  className="hover:opacity-100 transition-all duration-200 hover:scale-110"
                 >
                   <img src="/logos/fal-logo.svg" alt="fal" className="h-3 opacity-70" />
                 </a>
@@ -717,8 +732,8 @@ export default function ImageEditor() {
           </div>
         </div>
 
-        <div className="w-1/2 flex flex-col relative overflow-hidden border-t border-l border-zinc-800 rounded-tl-lg">
-          <div className="p-4 border-b border-zinc-800 bg-neutral-900/20">
+        <div className="w-1/2 flex flex-col relative overflow-hidden border-t border-l border-zinc-800/80 rounded-tl-lg bg-zinc-950/50 backdrop-blur-sm">
+          <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-sm">
             <h2 className="text-lg font-semibold text-zinc-50">Preview</h2>
             <p className="text-sm text-zinc-400">
               {selectedVersion
@@ -731,7 +746,7 @@ export default function ImageEditor() {
 
           <div className="flex-1 relative p-6 flex items-center justify-center">
             {selectedImage || localGeneratedImages.length > 0 ? (
-              <div className="relative">
+              <div className="relative group">
                 <img
                   src={
                     hoveredVersion
@@ -739,9 +754,9 @@ export default function ImageEditor() {
                       : (selectedVersion || localGeneratedImages[0])?.url || selectedImage || "/placeholder.svg"
                   }
                   alt="Preview image"
-                  className="max-w-full max-h-[500px] object-contain rounded-lg shadow-2xl"
+                  className="max-w-full max-h-[500px] object-contain rounded-lg shadow-2xl transition-all duration-300 group-hover:shadow-3xl"
                 />
-                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-zinc-800">
+                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-zinc-800/80 backdrop-blur-sm">
                   v
                   {hoveredVersion
                     ? (() => {
@@ -782,7 +797,7 @@ export default function ImageEditor() {
                       document.body.removeChild(link)
                     }
                   }}
-                  className="absolute top-4 right-4 bg-zinc-950/90 hover:bg-zinc-800/90 text-zinc-50 border border-zinc-800 h-8 w-8 p-0"
+                  className="absolute top-4 right-4 bg-zinc-950/90 hover:bg-zinc-800/90 text-zinc-50 border border-zinc-800/80 h-8 w-8 p-0 backdrop-blur-sm transition-all duration-200 hover:scale-110"
                 >
                   <Download className="w-4 h-4" />
                 </Button>
@@ -796,7 +811,7 @@ export default function ImageEditor() {
             )}
 
             {(selectedImage || localGeneratedImages.length > 0) && (
-              <div className="absolute top-0 right-0 bg-zinc-950/95 backdrop-blur-sm border-l border-zinc-800 p-2 h-full">
+              <div className="absolute top-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-l border-zinc-800/80 p-2 h-full">
                 <div className="flex flex-col gap-1">
                   {localGeneratedImages.map((image, index) => {
                     const versionNumber = localGeneratedImages.length - 1 - index
@@ -813,7 +828,9 @@ export default function ImageEditor() {
                         onMouseLeave={() => setHoveredVersion(null)}
                       >
                         <div
-                          className={'w-12 h-12 relative cursor-pointer hover:scale-110 transition-transform'}
+                          className={
+                            "w-12 h-12 relative cursor-pointer hover:scale-110 transition-all duration-200 hover:shadow-lg"
+                          }
                           onClick={() => {
                             setSelectedVersion(image)
                             setSelectedImage(image.url)
@@ -822,15 +839,17 @@ export default function ImageEditor() {
                           <img
                             src={image.url || "/placeholder.svg"}
                             alt={`Version ${versionNumber}`}
-                            className={`w-full h-full object-cover rounded border ${
-                              shouldHighlight ? "border-white" : "border-zinc-700"
+                            className={`w-full h-full object-cover rounded-lg border-2 transition-all duration-200 ${
+                              shouldHighlight
+                                ? "border-white shadow-lg shadow-white/20"
+                                : "border-zinc-700 hover:border-zinc-600"
                             }`}
                           />
                           <div
-                            className={`absolute -top-1 -right-1 px-1 py-0.5 rounded text-xs font-medium border ${
+                            className={`absolute -top-1 -right-1 px-1 py-0.5 rounded text-xs font-medium border transition-all duration-200 ${
                               shouldHighlight
-                                ? "bg-zinc-50 text-zinc-950 border-zinc-50"
-                                : "bg-zinc-950/90 text-zinc-50 border-zinc-700"
+                                ? "bg-zinc-50 text-zinc-950 border-zinc-50 shadow-lg"
+                                : "bg-zinc-950/90 text-zinc-50 border-zinc-700 backdrop-blur-sm"
                             }`}
                           >
                             v{versionNumber}
@@ -838,7 +857,7 @@ export default function ImageEditor() {
                         </div>
 
                         {hoveredVersion === image.id && (
-                          <div className="absolute top-0 right-full mr-2 z-50 bg-zinc-950 border border-zinc-700 rounded-lg p-3 w-64 shadow-xl">
+                          <div className="absolute top-0 right-full mr-2 z-50 bg-zinc-950/95 backdrop-blur-xl border border-zinc-700/80 rounded-lg p-3 w-64 shadow-2xl animate-in slide-in-from-right-2 duration-200">
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-zinc-50 font-medium text-sm">Version {versionNumber}</span>
