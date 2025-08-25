@@ -51,7 +51,7 @@ export default function ImageEditor() {
   const generateImageMutation = useGenerateImage()
 
   const falKey = settings?.falKey || ""
-  const selectedModel = settings?.selectedModel || "fal-ai/qwen-image-edit"
+  const selectedModel = settings?.selectedModel || "fal-ai/flux-pro/kontext"
 
   useEffect(() => {
     if (settingsDialogOpen) {

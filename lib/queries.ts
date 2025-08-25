@@ -14,7 +14,7 @@ export function useSettings() {
     queryKey: queryKeys.settings,
     queryFn: () => {
       const falKey = localStorage.getItem("falKey") || ""
-      const selectedModel = localStorage.getItem("selectedModel") || "Qwen Edit"
+      const selectedModel = localStorage.getItem("selectedModel") || "fal-ai/flux-pro/kontext"
       return { falKey, selectedModel }
     },
     staleTime: Number.POSITIVE_INFINITY,
