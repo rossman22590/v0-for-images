@@ -56,9 +56,10 @@ export default function ImageEditor() {
   useEffect(() => {
     if (currentConversation) {
       setLocalMessages(currentConversation.messages || [])
-      setLocalGeneratedImages(currentConversation.generatedImages || [])
-      if (currentConversation.generatedImages && currentConversation.generatedImages.length > 0) {
-        const latestImage = currentConversation.generatedImages[0]
+      const limitedImages = (currentConversation.generatedImages || []).slice(0, 20)
+      setLocalGeneratedImages(limitedImages)
+      if (limitedImages.length > 0) {
+        const latestImage = limitedImages[0]
         setSelectedVersion(latestImage)
         setSelectedImage(latestImage.url)
       }
@@ -72,11 +73,14 @@ export default function ImageEditor() {
           ? localMessages[0].content.slice(0, 50) + (localMessages[0].content.length > 50 ? "..." : "")
           : "New Conversation"
 
+      const limitedMessages = localMessages.slice(-50)
+      const limitedImages = localGeneratedImages.slice(0, 20)
+
       saveConversation.mutate({
         id: currentConversationId,
         title,
-        messages: localMessages,
-        generatedImages: localGeneratedImages,
+        messages: limitedMessages,
+        generatedImages: limitedImages,
         updatedAt: Date.now(),
       })
     }
@@ -111,13 +115,9 @@ export default function ImageEditor() {
     setPrompt("")
   }, [])
 
-  const loadConversation = useCallback(
-    (conversationId: string) => {
-      setCurrentConversationId(conversationId)
-      // toggleHistory()
-    },
-    [], // Remove toggleHistory dependency
-  )
+  const loadConversation = useCallback((conversationId: string) => {
+    setCurrentConversationId(conversationId)
+  }, [])
 
   const handleDeleteConversation = useCallback(
     (conversationId: string, e: React.MouseEvent) => {
@@ -143,9 +143,17 @@ export default function ImageEditor() {
     if (file) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setSelectedImage(e.target?.result as string)
+        const result = e.target?.result as string
+        setSelectedImage(result)
+      }
+      reader.onerror = () => {
+        console.error("[v0] FileReader error")
+        reader.abort()
       }
       reader.readAsDataURL(file)
+    }
+    if (event.target) {
+      event.target.value = ""
     }
   }, [])
 
@@ -178,7 +186,7 @@ export default function ImageEditor() {
       image: attachmentImage,
       timestamp: Date.now(),
     }
-    setLocalMessages((prev) => [...prev, userMessage])
+    setLocalMessages((prev) => [...prev.slice(-49), userMessage])
 
     generateImageMutation.mutate(
       { falKey, prompt, imageUrl: attachmentImage, model: selectedModel },
@@ -200,8 +208,15 @@ export default function ImageEditor() {
             timestamp: Date.now(),
           }
 
-          setLocalGeneratedImages((prev) => [newImage, ...prev])
-          setLocalMessages((prev) => [...prev, assistantMessage])
+          setLocalGeneratedImages((prev) => {
+            const newImages = [newImage, ...prev]
+            if (newImages.length > 20) {
+              return newImages.slice(0, 20)
+            }
+            return newImages
+          })
+
+          setLocalMessages((prev) => [...prev.slice(-49), assistantMessage])
           setSelectedVersion(newImage)
           setSelectedImage(newImage.url)
           setPrompt("")
@@ -569,19 +584,28 @@ export default function ImageEditor() {
             ) : (
               <div className="relative">
                 <img
-                  src={(selectedVersion || localGeneratedImages[0])?.url || "/placeholder.svg"}
+                  src={
+                    hoveredVersion
+                      ? localGeneratedImages.find((img) => img.id === hoveredVersion)?.url || "/placeholder.svg"
+                      : (selectedVersion || localGeneratedImages[0])?.url || "/placeholder.svg"
+                  }
                   alt="Preview image"
                   className="max-w-full max-h-[500px] object-contain rounded-lg shadow-2xl"
                 />
-                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded-full text-sm font-medium border border-zinc-700">
+                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-zinc-700">
                   v
-                  {selectedVersion
-                    ? localGeneratedImages.findIndex((img) => img.id === selectedVersion.id) >= 0
-                      ? localGeneratedImages.length -
-                        1 -
-                        localGeneratedImages.findIndex((img) => img.id === selectedVersion.id)
-                      : 0
-                    : localGeneratedImages.length - 1}
+                  {hoveredVersion
+                    ? (() => {
+                        const hoveredIndex = localGeneratedImages.findIndex((img) => img.id === hoveredVersion)
+                        return hoveredIndex >= 0 ? localGeneratedImages.length - 1 - hoveredIndex : 0
+                      })()
+                    : selectedVersion
+                      ? localGeneratedImages.findIndex((img) => img.id === selectedVersion.id) >= 0
+                        ? localGeneratedImages.length -
+                          1 -
+                          localGeneratedImages.findIndex((img) => img.id === selectedVersion.id)
+                        : 0
+                      : localGeneratedImages.length - 1}
                 </div>
               </div>
             )}
@@ -591,6 +615,10 @@ export default function ImageEditor() {
                 <div className="flex flex-col gap-1">
                   {localGeneratedImages.map((image, index) => {
                     const versionNumber = localGeneratedImages.length - 1 - index
+                    const isSelected = selectedVersion?.id === image.id
+                    const isOriginalHighlighted = !selectedVersion && versionNumber === 0
+                    const shouldHighlight = isSelected || isOriginalHighlighted
+
                     return (
                       <div
                         key={image.id}
@@ -599,7 +627,9 @@ export default function ImageEditor() {
                         onMouseLeave={() => setHoveredVersion(null)}
                       >
                         <div
-                          className="w-12 h-12 relative cursor-pointer hover:scale-110 transition-transform"
+                          className={`w-12 h-12 relative cursor-pointer hover:scale-110 transition-transform ${
+                            shouldHighlight ? "border-2 border-zinc-50 rounded-lg" : ""
+                          }`}
                           onClick={() => {
                             setSelectedVersion(image)
                             setSelectedImage(image.url)
@@ -608,16 +638,23 @@ export default function ImageEditor() {
                           <img
                             src={image.url || "/placeholder.svg"}
                             alt={`Version ${versionNumber}`}
-                            className="w-full h-full object-cover rounded border border-zinc-700"
+                            className={`w-full h-full object-cover rounded border ${
+                              shouldHighlight ? "border-zinc-50" : "border-zinc-700"
+                            }`}
                           />
-                          <div className="absolute -top-1 -right-1 bg-zinc-950/90 text-zinc-50 px-2 py-1 rounded-full text-xs font-medium border border-zinc-700">
+                          <div
+                            className={`absolute -top-1 -right-1 px-1 py-0.5 rounded text-xs font-medium border ${
+                              shouldHighlight
+                                ? "bg-zinc-50 text-zinc-950 border-zinc-50"
+                                : "bg-zinc-950/90 text-zinc-50 border-zinc-700"
+                            }`}
+                          >
                             v{versionNumber}
                           </div>
                         </div>
 
                         {hoveredVersion === image.id && (
                           <div className="absolute top-0 right-full mr-2 z-50 bg-zinc-950 border border-zinc-700 rounded-lg p-3 w-64 shadow-xl">
-                            <div className="absolute top-4 left-full w-2 h-2 bg-zinc-950 border-r border-b border-zinc-700 rotate-45 transform -translate-y-1/2"></div>
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-zinc-50 font-medium text-sm">Version {versionNumber}</span>
@@ -627,9 +664,24 @@ export default function ImageEditor() {
                               </div>
                               <p className="text-zinc-300 text-sm">{image.prompt}</p>
                               {image.model && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-zinc-400 text-xs">Model:</span>
-                                  <span className="text-zinc-300 text-xs font-medium">{image.model}</span>
+                                <div className="flex items-center gap-2">
+                                  {image.model === "Qwen Edit" && (
+                                    <img src="/logos/qwen.svg" alt="Qwen" className="w-4 h-4 flex-shrink-0" />
+                                  )}
+                                  {image.model === "Flux Kontext Pro" && (
+                                    <img
+                                      src="/logos/bfl.svg"
+                                      alt="Black Forest Labs"
+                                      className="w-4 h-4 flex-shrink-0"
+                                    />
+                                  )}
+                                  {image.model === "Bytedance Seededit" && (
+                                    <img src="/logos/bytedance.svg" alt="ByteDance" className="w-4 h-4 flex-shrink-0" />
+                                  )}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-zinc-400 text-xs">Model:</span>
+                                    <span className="text-zinc-300 text-xs font-medium">{image.model}</span>
+                                  </div>
                                 </div>
                               )}
                             </div>
