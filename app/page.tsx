@@ -408,6 +408,20 @@ export default function ImageEditor() {
                   </div>
                   <div className="max-w-[80%]">
                     <div className="rounded-lg px-3 pb-3  space-y-2 text-zinc-50">
+                      {message.type === "assistant" && message.generatedImage && (
+                        <div className="flex items-center gap-2 mb-2 pt-1">
+                          {message.generatedImage.model === "Qwen Edit" && (
+                            <img src="/logos/qwen.svg" alt="Qwen" className="w-4 h-4 flex-shrink-0" />
+                          )}
+                          {message.generatedImage.model === "Flux Kontext Pro" && (
+                            <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-4 h-4 flex-shrink-0" />
+                          )}
+                          {message.generatedImage.model === "Bytedance Seededit" && (
+                            <img src="/logos/bytedance.svg" alt="ByteDance" className="w-4 h-4 flex-shrink-0" />
+                          )}
+                          <span className="text-xs text-zinc-400 font-medium">{message.generatedImage.model}</span>
+                        </div>
+                      )}
                       <p className="text-sm">{message.content}</p>
                       {message.image && (
                         <img
@@ -452,7 +466,8 @@ export default function ImageEditor() {
                 placeholder="Describe how you want to edit the image..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                className="flex-1 min-h-[60px] resize-none bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0"
+                disabled={generateImageMutation.isPending}
+                className="flex-1 min-h-[60px] resize-none bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
@@ -480,8 +495,9 @@ export default function ImageEditor() {
                 <Select
                   value={selectedModel}
                   onValueChange={(value) => updateSettings.mutate({ selectedModel: value })}
+                  disabled={generateImageMutation.isPending}
                 >
-                  <SelectTrigger className="w-fit h-8 bg-zinc-950 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap">
+                  <SelectTrigger className="w-fit h-8 bg-zinc-950 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
                     <SelectValue placeholder="Model" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-950 border-zinc-700">
@@ -520,7 +536,8 @@ export default function ImageEditor() {
                 <Button
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-shrink-0 h-9 px-3 border-zinc-700 text-zinc-400 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50"
+                  disabled={generateImageMutation.isPending}
+                  className="flex-shrink-0 h-9 px-3 border-zinc-700 text-zinc-400 hover:bg-zinc-800 bg-zinc-950 hover:text-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
