@@ -1,0 +1,17 @@
+[
+  {
+    "label": "Qwen Edit",
+    "endpoint": "fal-ai/qwen-image-edit",
+    "logo": "/logos/qwen.svg"
+  },
+  {
+    "label": "Seeedit",
+    "endpoint": "fal-ai/bytedance/seededit/v3/edit-image",
+    "logo": "/logos/bytedance.svg"
+  },
+  {
+    "label": "Kontext Pro Edit",
+    "endpoint": "fal-ai/flux-pro/kontext",
+    "logo": "/logos/bfl.svg"
+  }
+]

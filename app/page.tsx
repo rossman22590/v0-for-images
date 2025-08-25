@@ -7,7 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { Send, Settings, User, Bot, Paperclip, Eye, Plus, MessageSquare, Trash2, Download } from "lucide-react"
 import type { ChatMessage, GeneratedImage, Conversation } from "@/lib/indexeddb"
 import {
@@ -19,14 +26,9 @@ import {
   useDeleteConversation,
   useGenerateImage,
 } from "@/lib/queries"
+import modelEndpoints from "@/lib/model-endpoints.json"
 
 export default function ImageEditor() {
-  const modelEndpoints = {
-    "Qwen Edit": "fal-ai/qwen-image-edit",
-    Seeedit: "fal-ai/bytedance/seededit/v3/edit-image",
-    "Kontext Pro Edit": "fal-ai/flux-pro/kontext",
-  }
-
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [prompt, setPrompt] = useState("")
   const [showSettings, setShowSettings] = useState(false)
@@ -322,9 +324,7 @@ export default function ImageEditor() {
       },
     )
 
-    const modelDisplayName =
-      Object.keys(modelEndpoints).find((key) => modelEndpoints[key as keyof typeof modelEndpoints] === selectedModel) ||
-      "Unknown Model"
+    const modelDisplayName = modelEndpoints.find((model) => model.endpoint === selectedModel)?.label || "Unknown Model"
 
     generateImageMutation.mutate(
       { falKey, prompt, imageUrl: attachmentImage, model: selectedModel },
@@ -399,7 +399,7 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-screen bg-zinc-950 flex flex-col relative"
+      className="h-screen bg-black flex flex-col relative"
       style={{
         scrollbarWidth: "none",
         msOverflowStyle: "none",
@@ -418,7 +418,7 @@ export default function ImageEditor() {
         }
       `}</style>
 
-      <div className="h-12 bg-zinc-950 flex items-center justify-between px-4 flex-shrink-0">
+      <div className="h-12 flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -457,12 +457,23 @@ export default function ImageEditor() {
           <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-50">
             <DialogHeader>
               <DialogTitle className="text-zinc-50">Settings</DialogTitle>
+              <DialogDescription className="text-zinc-400">
+                Configure your API settings and preferences.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="fal-key" className="text-sm text-zinc-300">
                   FAL API Key
                 </Label>
+                <Input
+                  id="fal-key"
+                  type="password"
+                  placeholder="Enter your FAL API key"
+                  value={tempFalKey}
+                  onChange={(e) => setTempFalKey(e.target.value)}
+                  className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 transition-colors duration-200"
+                />
                 <p className="text-xs text-zinc-500 mt-1 mb-2">
                   Get your API key from{" "}
                   <a
@@ -474,14 +485,6 @@ export default function ImageEditor() {
                     fal.ai/dashboard/keys
                   </a>
                 </p>
-                <Input
-                  id="fal-key"
-                  type="password"
-                  placeholder="Enter your FAL API key"
-                  value={tempFalKey}
-                  onChange={(e) => setTempFalKey(e.target.value)}
-                  className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 transition-colors duration-200"
-                />
               </div>
               <div className="flex justify-end gap-2">
                 <Button
@@ -516,7 +519,7 @@ export default function ImageEditor() {
               isHistoryAnimating ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="p-4 border-b bg-zinc-900/50 border-zinc-800/80 flex items-center justify-between">
+            <div className="p-4 border-b bg-zinc-950/50 border-zinc-800/80 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-50">History</h2>
               <Button
                 onClick={createNewConversation}
@@ -586,15 +589,16 @@ export default function ImageEditor() {
                     <div className="rounded-lg px-3 pb-3  space-y-2 text-zinc-50">
                       {message.type === "assistant" && message.generatedImage && (
                         <div className="flex items-center gap-2 mb-2 pt-1">
-                          {message.generatedImage.model === "Qwen Edit" && (
-                            <img src="/logos/qwen.svg" alt="Qwen" className="w-4 h-4 flex-shrink-0" />
-                          )}
-                          {message.generatedImage.model === "Kontext Pro Edit" && (
-                            <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-4 h-4 flex-shrink-0" />
-                          )}
-                          {message.generatedImage.model === "Seeedit" && (
-                            <img src="/logos/bytedance.svg" alt="ByteDance" className="w-4 h-4 flex-shrink-0" />
-                          )}
+                          {(() => {
+                            const model = modelEndpoints.find((m) => m.label === message.generatedImage?.model)
+                            return model ? (
+                              <img
+                                src={model.logo || "/placeholder.svg"}
+                                alt={model.label}
+                                className="w-4 h-4 flex-shrink-0"
+                              />
+                            ) : null
+                          })()}
                           <span className="text-xs text-zinc-400 font-medium">{message.generatedImage.model}</span>
                         </div>
                       )}
@@ -648,14 +652,14 @@ export default function ImageEditor() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/20 backdrop-blur-sm">
+          <div className="p-4 border-t border-zinc-800/80 bg-zinc-800/20 backdrop-blur-sm">
             <div className="flex gap-2">
               <Textarea
                 placeholder="Describe how you want to edit the image..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={generateImageMutation.isPending}
-                className="flex-1 min-h-[60px] resize-none bg-zinc-950/80 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:shadow-lg focus:shadow-zinc-800/50"
+                className="flex-1 min-h-[60px] resize-none bg-black border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:shadow-lg focus:shadow-zinc-800/50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
@@ -689,33 +693,22 @@ export default function ImageEditor() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-950/95 backdrop-blur-xl border-zinc-700">
-                    <SelectItem
-                      value="fal-ai/qwen-image-edit"
-                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img src="/logos/qwen.svg" alt="Qwen" className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">Qwen Edit</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem
-                      value="fal-ai/flux-pro/kontext"
-                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img src="/logos/bfl.svg" alt="Black Forest Labs" className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">Kontext Pro Edit</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem
-                      value="fal-ai/bytedance/seededit/v3/edit-image"
-                      className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img src="/logos/bytedance.svg" alt="ByteDance" className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">Seeedit</span>
-                      </div>
-                    </SelectItem>
+                    {modelEndpoints.map((model) => (
+                      <SelectItem
+                        key={model.endpoint}
+                        value={model.endpoint}
+                        className="text-zinc-50 focus:bg-zinc-800 focus:text-zinc-50 text-xs whitespace-nowrap hover:bg-zinc-800/80 transition-colors duration-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={model.logo || "/placeholder.svg"}
+                            alt={model.label}
+                            className="w-3 h-3 flex-shrink-0"
+                          />
+                          <span className="truncate">{model.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -767,8 +760,8 @@ export default function ImageEditor() {
           </div>
         </div>
 
-        <div className="w-2/3 flex flex-col relative overflow-hidden border-t border-l border-zinc-800/80 rounded-tl-lg bg-zinc-950/50 backdrop-blur-sm">
-          <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-sm">
+        <div className="w-2/3 flex flex-col relative overflow-hidden border-t border-l border-zinc-800/80 rounded-tl-lg bg-black backdrop-blur-sm">
+          <div className="p-4 border-b border-zinc-800/80 bg-zinc-800/30 backdrop-blur-sm">
             <h2 className="text-lg font-semibold text-zinc-50">Preview</h2>
             <p className="text-sm text-zinc-400">
               {selectedVersion
@@ -903,19 +896,16 @@ export default function ImageEditor() {
                               <p className="text-zinc-300 text-sm">{image.prompt}</p>
                               {image.model && (
                                 <div className="flex items-center gap-2">
-                                  {image.model === "Qwen Edit" && (
-                                    <img src="/logos/qwen.svg" alt="Qwen" className="w-4 h-4 flex-shrink-0" />
-                                  )}
-                                  {image.model === "Kontext Pro Edit" && (
-                                    <img
-                                      src="/logos/bfl.svg"
-                                      alt="Black Forest Labs"
-                                      className="w-4 h-4 flex-shrink-0"
-                                    />
-                                  )}
-                                  {image.model === "Seeedit" && (
-                                    <img src="/logos/bytedance.svg" alt="ByteDance" className="w-4 h-4 flex-shrink-0" />
-                                  )}
+                                  {(() => {
+                                    const model = modelEndpoints.find((m) => m.label === image.model)
+                                    return model ? (
+                                      <img
+                                        src={model.logo || "/placeholder.svg"}
+                                        alt={model.label}
+                                        className="w-4 h-4 flex-shrink-0"
+                                      />
+                                    ) : null
+                                  })()}
                                   <div className="flex items-center gap-1">
                                     <span className="text-zinc-400 text-xs">Model:</span>
                                     <span className="text-zinc-300 text-xs font-medium">{image.model}</span>
