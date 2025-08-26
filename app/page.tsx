@@ -496,7 +496,7 @@ export default function ImageEditor() {
                 </Button>
                 <Button
                   onClick={handleSaveFalKey}
-                  className="bg-zinc-50 hover:bg-zinc-200 text-zinc-950 transition-all duration-200 hover:scale-105"
+                  className="bg-zinc-50 hover:bg-zinc-200 text-zinc-900 transition-all duration-200 hover:scale-105"
                 >
                   Save
                 </Button>
@@ -607,14 +607,14 @@ export default function ImageEditor() {
                         <img
                           src={message.image || "/placeholder.svg"}
                           alt="Uploaded"
-                          className="max-w-48 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
+                          className="w-auto h-9 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
                         />
                       )}
                       {message.generatedImage && (
                         <img
                           src={message.generatedImage.url || "/placeholder.svg"}
                           alt="Generated"
-                          className="max-w-64 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
+                          className="w-auto h-9 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
                         />
                       )}
                       <p className="text-xs text-zinc-500">{new Date(message.timestamp).toLocaleTimeString()}</p>
@@ -736,11 +736,9 @@ export default function ImageEditor() {
                       alt="Attachment"
                       className="w-9 h-9 rounded-lg object-cover border border-neutral-200/20 hover:border-zinc-500 transition-colors duration-200"
                     />
-                    {!selectedImage && localGeneratedImages.length > 0 && (
-                      <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1 py-0.5 rounded text-xs font-bold">
-                        v{localGeneratedImages.length - 1}
+                      <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1.5 py-0.5 rounded-full text-xs font-bold min-w-[18px] h-[18px] flex items-center justify-center">
+                        v{localGeneratedImages.length > 0 ? localGeneratedImages.length - 1 : 0}
                       </div>
-                    )}
                   </div>
                 )}
               </div>
