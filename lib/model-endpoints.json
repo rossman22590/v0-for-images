@@ -13,5 +13,10 @@
     "label": "Kontext Pro Edit",
     "endpoint": "fal-ai/flux-pro/kontext",
     "logo": "/logos/bfl.svg"
+  },
+  {
+    "label": "Nano Banana Edit",
+    "endpoint": "fal-ai/nano-banana/edit",
+    "logo": "/logos/google.svg"
   }
 ]

@@ -54,7 +54,7 @@ export default function ImageEditor() {
   const generateImageMutation = useGenerateImage()
 
   const falKey = settings?.falKey || ""
-  const selectedModel = settings?.selectedModel || "fal-ai/flux-pro/kontext"
+  const selectedModel = settings?.selectedModel || "fal-ai/nano-banana/edit"
 
   useEffect(() => {
     if (settingsDialogOpen) {
