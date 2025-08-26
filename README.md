@@ -1,10 +1,5 @@
 # Image editing UI
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
-
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/aykut-kardas-projects/v0-image-editing-ui)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/A0ZO8pXbwLe)
-
 ## Overview
 
 This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
@@ -14,13 +9,13 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Your project is live at:
 
-**[https://vercel.com/aykut-kardas-projects/v0-image-editing-ui](https://vercel.com/aykut-kardas-projects/v0-image-editing-ui)**
+**[https://v0-for-images.vercel.app](https://v0-for-images.vercel.app)**
 
 ## Build your app
 
 Continue building your app on:
 
-**[https://v0.app/chat/projects/A0ZO8pXbwLe](https://v0.app/chat/projects/A0ZO8pXbwLe)**
+**[https://v0.app/chat/v0-for-images-jHj6h2PDnUc](https://v0.app/chat/v0-for-images-jHj6h2PDnUc)**
 
 ## How It Works
 
