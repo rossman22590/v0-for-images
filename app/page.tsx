@@ -85,6 +85,8 @@ export default function ImageEditor() {
       const limitedMessages = localMessages.slice(-50)
       const limitedImages = localGeneratedImages.slice(0, 20)
 
+      console.log("[v0] Saving conversation with messages:", limitedMessages.length, "images:", limitedImages.length)
+
       saveConversation.mutate(
         {
           id: currentConversationId,
@@ -96,19 +98,16 @@ export default function ImageEditor() {
         },
         {
           onSuccess: () => {
+            console.log("[v0] Conversation saved successfully")
             refetchConversations()
+          },
+          onError: (error) => {
+            console.error("[v0] Failed to save conversation:", error)
           },
         },
       )
     }
-  }, [
-    localMessages,
-    localGeneratedImages,
-    currentConversationId,
-    currentConversation?.createdAt,
-    saveConversation,
-    refetchConversations,
-  ])
+  }, [localMessages, localGeneratedImages, currentConversationId, currentConversation?.createdAt])
 
   const handleSaveFalKey = useCallback(() => {
     updateSettings.mutate({ falKey: tempFalKey })
@@ -263,25 +262,10 @@ export default function ImageEditor() {
     if (!attachmentImage) return
 
     let conversationId = currentConversationId
+
     if (!conversationId) {
       conversationId = Date.now().toString()
       setCurrentConversationId(conversationId)
-
-      // Save empty conversation immediately to make it appear in history
-      const newConversation: Conversation = {
-        id: conversationId,
-        title: "New Conversation",
-        messages: [],
-        generatedImages: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }
-
-      saveConversation.mutate(newConversation, {
-        onSuccess: () => {
-          refetchConversations()
-        },
-      })
     }
 
     if (localGeneratedImages.length === 0 && selectedImage) {
@@ -305,24 +289,6 @@ export default function ImageEditor() {
 
     const updatedMessages = [...localMessages.slice(-49), userMessage]
     setLocalMessages(updatedMessages)
-
-    // Save conversation immediately with the user message to update history
-    const title = prompt.slice(0, 50) + (prompt.length > 50 ? "..." : "")
-    saveConversation.mutate(
-      {
-        id: conversationId,
-        title,
-        messages: updatedMessages,
-        generatedImages: localGeneratedImages,
-        createdAt: currentConversation?.createdAt || Date.now(),
-        updatedAt: Date.now(),
-      },
-      {
-        onSuccess: () => {
-          refetchConversations()
-        },
-      },
-    )
 
     const modelDisplayName = modelEndpoints.find((model) => model.endpoint === selectedModel)?.label || "Unknown Model"
 
@@ -382,10 +348,7 @@ export default function ImageEditor() {
     selectedModel,
     generateImageMutation,
     modelEndpoints,
-    localMessages, // Added localMessages to dependencies
-    saveConversation,
-    refetchConversations,
-    currentConversation?.createdAt,
+    localMessages,
     playNotificationSound,
   ])
 
@@ -395,7 +358,7 @@ export default function ImageEditor() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [localMessages, localGeneratedImages, scrollToBottom]) // Added localGeneratedImages to trigger scroll after image generation
+  }, [localMessages, localGeneratedImages, scrollToBottom])
 
   return (
     <div
@@ -611,11 +574,21 @@ export default function ImageEditor() {
                         />
                       )}
                       {message.generatedImage && (
-                        <img
-                          src={message.generatedImage.url || "/placeholder.svg"}
-                          alt="Generated"
-                          className="w-auto h-9 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
-                        />
+                        <div className="relative inline-block">
+                          <img
+                            src={message.generatedImage.url || "/placeholder.svg"}
+                            alt="Generated"
+                            className="w-auto h-9 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
+                          />
+                          <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1.5 py-0.5 rounded-full text-xs font-bold min-w-[18px] h-[18px] flex items-center justify-center">
+                            v{(() => {
+                              const imageIndex = localGeneratedImages.findIndex(
+                                (img) => img.id === message.generatedImage?.id,
+                              )
+                              return imageIndex >= 0 ? localGeneratedImages.length - 1 - imageIndex : 1
+                            })()}
+                          </div>
+                        </div>
                       )}
                       <p className="text-xs text-zinc-500">{new Date(message.timestamp).toLocaleTimeString()}</p>
                     </div>
@@ -629,21 +602,10 @@ export default function ImageEditor() {
                   <Bot className="w-4 h-4 text-zinc-300" />
                 </div>
                 <div className="flex-1 max-w-[80%]">
-                  <div className="bg-zinc-950 rounded-lg px-3 pb-3 pt-1.5">
+                  <div className="px-3 pb-3 pt-1.5">
                     <div className="flex items-center gap-2">
                       <img src="/logos/fal.svg" alt="Loading" className="w-4 h-4 animate-spin" />
                       <span className="text-sm text-zinc-300">Generating image...</span>
-                      <div className="flex gap-1 ml-2">
-                        <div className="w-1 h-1 bg-zinc-400 rounded-full animate-pulse"></div>
-                        <div
-                          className="w-1 h-1 bg-zinc-400 rounded-full animate-pulse"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                        <div
-                          className="w-1 h-1 bg-zinc-400 rounded-full animate-pulse"
-                          style={{ animationDelay: "0.4s" }}
-                        ></div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -736,9 +698,18 @@ export default function ImageEditor() {
                       alt="Attachment"
                       className="w-9 h-9 rounded-lg object-cover border border-neutral-200/20 hover:border-zinc-500 transition-colors duration-200"
                     />
-                      <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1.5 py-0.5 rounded-full text-xs font-bold min-w-[18px] h-[18px] flex items-center justify-center">
-                        v{localGeneratedImages.length > 0 ? localGeneratedImages.length - 1 : 0}
-                      </div>
+                    <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1.5 py-0.5 rounded-full text-xs font-bold min-w-[18px] h-[18px] flex items-center justify-center">
+                      v
+                      {selectedVersion
+                        ? localGeneratedImages.findIndex((img) => img.id === selectedVersion.id) >= 0
+                          ? localGeneratedImages.length -
+                            1 -
+                            localGeneratedImages.findIndex((img) => img.id === selectedVersion.id)
+                          : 0
+                        : localGeneratedImages.length > 0
+                          ? localGeneratedImages.length - 1
+                          : 0}
+                    </div>
                   </div>
                 )}
               </div>
@@ -782,23 +753,6 @@ export default function ImageEditor() {
                   alt="Preview image"
                   className="max-w-full max-h-[500px] object-contain rounded-lg shadow-2xl transition-all duration-300 group-hover:shadow-3xl"
                 />
-                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-neutral-200/20 backdrop-blur-sm">
-                  v
-                  {hoveredVersion
-                    ? (() => {
-                        const hoveredIndex = localGeneratedImages.findIndex((img) => img.id === hoveredVersion)
-                        return hoveredIndex >= 0 ? localGeneratedImages.length - 1 - hoveredIndex : 0
-                      })()
-                    : selectedVersion
-                      ? localGeneratedImages.findIndex((img) => img.id === selectedVersion.id) >= 0
-                        ? localGeneratedImages.length -
-                          1 -
-                          localGeneratedImages.findIndex((img) => img.id === selectedVersion.id)
-                        : 0
-                      : localGeneratedImages.length > 0
-                        ? localGeneratedImages.length - 1
-                        : 0}
-                </div>
                 <Button
                   variant="ghost"
                   size="sm"
