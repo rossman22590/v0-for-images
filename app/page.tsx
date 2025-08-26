@@ -563,7 +563,7 @@ export default function ImageEditor() {
       )}
 
       <div className="flex-1 flex">
-        <div className="w-1/3 flex flex-col" style={{ minWidth: "400px" }}>
+        <div className="w-1/3 flex flex-col bg-black" style={{ minWidth: "400px" }}>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-11rem)]">
             {localMessages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
@@ -652,7 +652,7 @@ export default function ImageEditor() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t border-zinc-800/80 bg-zinc-800/20 backdrop-blur-sm">
+          <div className="p-4 border-t border-zinc-800/80 bg-zinc-800/20">
             <div className="flex gap-2">
               <Textarea
                 placeholder="Describe how you want to edit the image..."
