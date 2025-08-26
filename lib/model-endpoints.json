@@ -5,7 +5,7 @@
     "logo": "/logos/qwen.svg"
   },
   {
-    "label": "Seeedit",
+    "label": "Seededit",
     "endpoint": "fal-ai/bytedance/seededit/v3/edit-image",
     "logo": "/logos/bytedance.svg"
   },

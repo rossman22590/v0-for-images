@@ -395,7 +395,7 @@ export default function ImageEditor() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [localMessages, scrollToBottom])
+  }, [localMessages, localGeneratedImages, scrollToBottom]) // Added localGeneratedImages to trigger scroll after image generation
 
   return (
     <div
@@ -454,7 +454,7 @@ export default function ImageEditor() {
               <Settings className="w-4 h-4" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-50">
+          <DialogContent className="bg-zinc-950 border-neutral-200/20 text-zinc-50">
             <DialogHeader>
               <DialogTitle className="text-zinc-50">Settings</DialogTitle>
               <DialogDescription className="text-zinc-400">
@@ -472,7 +472,7 @@ export default function ImageEditor() {
                   placeholder="Enter your FAL API key"
                   value={tempFalKey}
                   onChange={(e) => setTempFalKey(e.target.value)}
-                  className="mt-1 bg-zinc-950 border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 transition-colors duration-200"
+                  className="mt-1 bg-zinc-950 border-neutral-200/20 text-zinc-50 placeholder-zinc-500 focus:border-zinc-500 focus:ring-0 transition-colors duration-200"
                 />
                 <p className="text-xs text-zinc-500 mt-1 mb-2">
                   Get your API key from{" "}
@@ -490,7 +490,7 @@ export default function ImageEditor() {
                 <Button
                   variant="outline"
                   onClick={() => setSettingsDialogOpen(false)}
-                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 bg-zinc-950/80 hover:text-zinc-50 transition-all duration-200"
+                  className="border-neutral-200/20 text-zinc-300 hover:bg-zinc-800 bg-zinc-950/80 hover:text-zinc-50 transition-all duration-200"
                 >
                   Cancel
                 </Button>
@@ -515,11 +515,11 @@ export default function ImageEditor() {
             onClick={toggleHistory}
           />
           <div
-            className={`fixed top-12 left-0 w-80 h-[calc(100vh-3rem)] bg-zinc-950/95 backdrop-blur-xl border-t rounded-tr-lg border-r border-zinc-800/80 flex flex-col z-50 shadow-2xl transition-all duration-300 ease-out ${
+            className={`fixed top-12 left-0 w-80 h-[calc(100vh-3rem)] bg-zinc-950/95 backdrop-blur-xl border-t rounded-tr-lg border-r border-neutral-200/20 flex flex-col z-50 shadow-2xl transition-all duration-300 ease-out ${
               isHistoryAnimating ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="p-4 border-b bg-zinc-950/50 border-zinc-800/80 flex items-center justify-between">
+            <div className="p-4 border-b bg-zinc-950/50 border-neutral-200/20 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-50">History</h2>
               <Button
                 onClick={createNewConversation}
@@ -533,7 +533,7 @@ export default function ImageEditor() {
                 <div
                   key={conversation.id}
                   className={`p-3 rounded-lg cursor-pointer mb-2 group hover:bg-zinc-800/80 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${
-                    currentConversationId === conversation.id ? "bg-zinc-800/60 ring-1 ring-zinc-700" : ""
+                    currentConversationId === conversation.id ? "bg-zinc-800/60 ring-1 ring-neutral-200/20" : ""
                   }`}
                   onClick={() => loadConversation(conversation.id)}
                 >
@@ -607,14 +607,14 @@ export default function ImageEditor() {
                         <img
                           src={message.image || "/placeholder.svg"}
                           alt="Uploaded"
-                          className="max-w-48 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors duration-200"
+                          className="max-w-48 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
                         />
                       )}
                       {message.generatedImage && (
                         <img
                           src={message.generatedImage.url || "/placeholder.svg"}
                           alt="Generated"
-                          className="max-w-64 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors duration-200"
+                          className="max-w-64 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors duration-200"
                         />
                       )}
                       <p className="text-xs text-zinc-500">{new Date(message.timestamp).toLocaleTimeString()}</p>
@@ -652,14 +652,14 @@ export default function ImageEditor() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t border-zinc-800/80 bg-zinc-800/20">
+          <div className="p-4 border-t border-neutral-200/20 bg-zinc-800/20">
             <div className="flex gap-2">
               <Textarea
                 placeholder="Describe how you want to edit the image..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={generateImageMutation.isPending}
-                className="flex-1 min-h-[60px] resize-none bg-black border-zinc-700 text-zinc-50 placeholder-zinc-500 focus:border-zinc-600 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:shadow-lg focus:shadow-zinc-800/50"
+                className="flex-1 min-h-[60px] resize-none bg-black border-neutral-200/20 text-zinc-50 placeholder-zinc-500 focus:border-zinc-500 focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:shadow-lg focus:shadow-zinc-800/50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
@@ -689,10 +689,10 @@ export default function ImageEditor() {
                   onValueChange={(value) => updateSettings.mutate({ selectedModel: value })}
                   disabled={generateImageMutation.isPending}
                 >
-                  <SelectTrigger className="w-fit h-8 bg-zinc-950/80 border-zinc-700 text-zinc-50 focus:border-zinc-600 focus:ring-0 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-900/80 transition-colors duration-200">
+                  <SelectTrigger className="w-fit h-8 bg-zinc-950/80 border-neutral-200/20 text-zinc-50 focus:border-zinc-500 focus:ring-0 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-900/80 transition-colors duration-200">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950/95 backdrop-blur-xl border-zinc-700">
+                  <SelectContent className="bg-zinc-950/95 backdrop-blur-xl border-neutral-200/20">
                     {modelEndpoints.map((model) => (
                       <SelectItem
                         key={model.endpoint}
@@ -718,7 +718,7 @@ export default function ImageEditor() {
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={generateImageMutation.isPending}
-                  className="flex-shrink-0 h-9 px-3 border-zinc-700 text-zinc-400 hover:bg-zinc-800/80 bg-zinc-950/80 hover:text-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
+                  className="flex-shrink-0 h-9 px-3 border-neutral-200/20 text-zinc-400 hover:bg-zinc-800/80 bg-zinc-950/80 hover:text-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
@@ -734,7 +734,7 @@ export default function ImageEditor() {
                     <img
                       src={selectedImage || localGeneratedImages[0]?.url || "/placeholder.svg"}
                       alt="Attachment"
-                      className="w-8 h-9 rounded-lg object-cover border border-zinc-700 hover:border-zinc-600 transition-colors duration-200"
+                      className="w-9 h-9 rounded-lg object-cover border border-neutral-200/20 hover:border-zinc-500 transition-colors duration-200"
                     />
                     {!selectedImage && localGeneratedImages.length > 0 && (
                       <div className="absolute -top-1 -right-1 bg-zinc-50 text-zinc-950 px-1 py-0.5 rounded text-xs font-bold">
@@ -760,8 +760,8 @@ export default function ImageEditor() {
           </div>
         </div>
 
-        <div className="w-2/3 flex flex-col relative overflow-hidden border-t border-l border-zinc-800/80 rounded-tl-lg bg-black backdrop-blur-sm">
-          <div className="p-4 border-b border-zinc-800/80 bg-zinc-800/30 backdrop-blur-sm">
+        <div className="w-2/3 flex flex-col relative overflow-hidden border-t border-l border-neutral-200/20 rounded-tl-lg bg-black backdrop-blur-sm">
+          <div className="p-4 border-b border-neutral-200/20 bg-zinc-800/30 backdrop-blur-sm">
             <h2 className="text-lg font-semibold text-zinc-50">Preview</h2>
             <p className="text-sm text-zinc-400">
               {selectedVersion
@@ -784,7 +784,7 @@ export default function ImageEditor() {
                   alt="Preview image"
                   className="max-w-full max-h-[500px] object-contain rounded-lg shadow-2xl transition-all duration-300 group-hover:shadow-3xl"
                 />
-                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-zinc-800/80 backdrop-blur-sm">
+                <div className="absolute top-4 left-4 bg-zinc-950/90 text-zinc-50 px-3 py-1 rounded text-sm font-medium border border-neutral-200/20 backdrop-blur-sm">
                   v
                   {hoveredVersion
                     ? (() => {
@@ -825,7 +825,7 @@ export default function ImageEditor() {
                       document.body.removeChild(link)
                     }
                   }}
-                  className="absolute top-4 right-4 bg-zinc-950/90 hover:bg-zinc-800/90 text-zinc-50 border border-zinc-800/80 h-8 w-8 p-0 backdrop-blur-sm transition-all duration-200 hover:scale-110"
+                  className="absolute top-4 right-4 bg-zinc-950/90 hover:bg-zinc-800/90 text-zinc-50 border border-neutral-200/20 h-8 w-8 p-0 backdrop-blur-sm transition-all duration-200 hover:scale-110"
                 >
                   <Download className="w-4 h-4" />
                 </Button>
@@ -839,7 +839,7 @@ export default function ImageEditor() {
             )}
 
             {(selectedImage || localGeneratedImages.length > 0) && (
-              <div className="absolute top-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-l border-zinc-800/80 p-2 h-full">
+              <div className="absolute top-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-l border-neutral-200/20 p-2 h-full">
                 <div className="flex flex-col gap-1">
                   {localGeneratedImages.map((image, index) => {
                     const versionNumber = localGeneratedImages.length - 1 - index
@@ -870,14 +870,14 @@ export default function ImageEditor() {
                             className={`w-full h-full object-cover rounded-lg border-2 transition-all duration-200 ${
                               shouldHighlight
                                 ? "border-white shadow-lg shadow-white/20"
-                                : "border-zinc-700 hover:border-zinc-600"
+                                : "border-neutral-200/20 hover:border-zinc-500"
                             }`}
                           />
                           <div
                             className={`absolute -top-1 -right-1 px-1 py-0.5 rounded text-xs font-medium border transition-all duration-200 ${
                               shouldHighlight
                                 ? "bg-zinc-50 text-zinc-950 border-zinc-50 shadow-lg"
-                                : "bg-zinc-950/90 text-zinc-50 border-zinc-700 backdrop-blur-sm"
+                                : "bg-zinc-950/90 text-zinc-50 border-neutral-200/20 backdrop-blur-sm"
                             }`}
                           >
                             v{versionNumber}
@@ -885,7 +885,7 @@ export default function ImageEditor() {
                         </div>
 
                         {hoveredVersion === image.id && (
-                          <div className="absolute top-0 right-full mr-2 z-50 bg-zinc-950/95 backdrop-blur-xl border border-zinc-700/80 rounded-lg p-3 w-64 shadow-2xl animate-in slide-in-from-right-2 duration-200">
+                          <div className="absolute top-0 right-full mr-2 z-50 bg-zinc-950/95 backdrop-blur-xl border border-neutral-200/20 rounded-lg p-3 w-64 shadow-2xl animate-in slide-in-from-right-2 duration-200">
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-zinc-50 font-medium text-sm">Version {versionNumber}</span>
