@@ -16,7 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Send, Settings, User, Bot, Paperclip, Eye, Plus, MessageSquare, Trash2, Download } from "lucide-react"
-import type { ChatMessage, GeneratedImage, Conversation } from "@/lib/indexeddb"
+import type { ChatMessage, GeneratedImage, Conversation } from "@/lib/queries"
 import {
   useConversations,
   useCurrentConversation,
@@ -55,12 +55,15 @@ export default function ImageEditor() {
 
   const falKey = settings?.falKey || ""
   const selectedModel = settings?.selectedModel || "fal-ai/nano-banana/edit"
+  const hasEnvFalKey = settings?.hasEnvFalKey || false
+  const localFalKey = settings?.localFalKey || ""
 
   useEffect(() => {
     if (settingsDialogOpen) {
-      setTempFalKey(falKey)
+      // Show the local key for editing, or placeholder if using env key
+      setTempFalKey(localFalKey)
     }
-  }, [settingsDialogOpen, falKey])
+  }, [settingsDialogOpen, localFalKey])
 
   useEffect(() => {
     if (currentConversation) {
@@ -75,6 +78,61 @@ export default function ImageEditor() {
     }
   }, [currentConversation])
 
+  // Load any stored uploaded images on component mount
+  useEffect(() => {
+    try {
+      const storedImages = localStorage.getItem("uploadedImages")
+      if (storedImages) {
+        const images = JSON.parse(storedImages)
+        if (images.length > 0 && !selectedImage) {
+          // Set the most recent uploaded image as selected
+          const latestImage = images[images.length - 1]
+          setSelectedImage(latestImage.url)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading stored images:", error)
+    }
+  }, [selectedImage])
+
+  // Load generated images from localStorage on component mount
+  useEffect(() => {
+    try {
+      const storedGeneratedImages = localStorage.getItem("generatedImages")
+      if (storedGeneratedImages && localGeneratedImages.length === 0) {
+        const images = JSON.parse(storedGeneratedImages)
+        if (images.length > 0) {
+          setLocalGeneratedImages(images)
+          setSelectedVersion(images[0])
+          setSelectedImage(images[0].url)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading generated images from localStorage:", error)
+    }
+  }, [])
+
+  // Restore current conversation from localStorage on component mount
+  useEffect(() => {
+    try {
+      const storedCurrentConversation = localStorage.getItem("currentConversation")
+      if (storedCurrentConversation) {
+        const conversation = JSON.parse(storedCurrentConversation)
+        if (conversation.messages && conversation.messages.length > 0) {
+          setLocalMessages(conversation.messages)
+          setCurrentConversationId(conversation.id)
+        }
+        if (conversation.generatedImages && conversation.generatedImages.length > 0) {
+          setLocalGeneratedImages(conversation.generatedImages)
+          setSelectedVersion(conversation.generatedImages[0])
+          setSelectedImage(conversation.generatedImages[0].url)
+        }
+      }
+    } catch (error) {
+      console.error("Error restoring current conversation from localStorage:", error)
+    }
+  }, [])
+
   useEffect(() => {
     if (currentConversationId && (localMessages.length > 0 || localGeneratedImages.length > 0)) {
       const title =
@@ -86,6 +144,20 @@ export default function ImageEditor() {
       const limitedImages = localGeneratedImages.slice(0, 20)
 
       console.log("[v0] Saving conversation with messages:", limitedMessages.length, "images:", limitedImages.length)
+
+      // Save to localStorage immediately for persistence
+      try {
+        localStorage.setItem("currentConversation", JSON.stringify({
+          id: currentConversationId,
+          title,
+          messages: limitedMessages,
+          generatedImages: limitedImages,
+          createdAt: currentConversation?.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        }))
+      } catch (error) {
+        console.error("Error saving current conversation to localStorage:", error)
+      }
 
       saveConversation.mutate(
         {
@@ -174,7 +246,7 @@ export default function ImageEditor() {
           if (currentConversationId === conversationId) {
             console.log("[v0] Deleted conversation was current, switching to another")
             if (conversations.length > 1) {
-              const remaining = conversations.filter((c) => c.id !== conversationId)
+              const remaining = conversations.filter((c: Conversation) => c.id !== conversationId)
               if (remaining.length > 0) {
                 loadConversation(remaining[0].id)
               } else {
@@ -208,6 +280,23 @@ export default function ImageEditor() {
         reader.onload = (e) => {
           const result = e.target?.result as string
           setSelectedImage(result)
+          
+          // Store the uploaded image in localStorage
+          try {
+            const storedImages = localStorage.getItem("uploadedImages") || "[]"
+            const images = JSON.parse(storedImages)
+            const imageData = {
+              id: Date.now().toString() + "_uploaded",
+              url: result,
+              timestamp: Date.now(),
+              filename: file.name
+            }
+            images.push(imageData)
+            localStorage.setItem("uploadedImages", JSON.stringify(images))
+          } catch (error) {
+            console.error("Error storing image in localStorage:", error)
+          }
+          
           if (localGeneratedImages.length === 0) {
             const originalImage: GeneratedImage = {
               id: Date.now().toString() + "_original",
@@ -317,6 +406,14 @@ export default function ImageEditor() {
             if (newImages.length > 20) {
               return newImages.slice(0, 20)
             }
+            
+            // Store generated images in localStorage
+            try {
+              localStorage.setItem("generatedImages", JSON.stringify(newImages))
+            } catch (error) {
+              console.error("Error storing generated images in localStorage:", error)
+            }
+            
             return newImages
           })
 
@@ -405,7 +502,7 @@ export default function ImageEditor() {
 
         <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
           <DialogTrigger asChild>
-            <Button
+            {/* <Button
               variant="ghost"
               size="sm"
               className={`h-8 px-2 transition-all duration-200 hover:scale-105 ${
@@ -415,7 +512,7 @@ export default function ImageEditor() {
               }`}
             >
               <Settings className="w-4 h-4" />
-            </Button>
+            </Button> */}
           </DialogTrigger>
           <DialogContent className="bg-zinc-950 border-neutral-200/20 text-zinc-50">
             <DialogHeader>
@@ -429,6 +526,11 @@ export default function ImageEditor() {
                 <Label htmlFor="fal-key" className="text-sm text-zinc-300">
                   FAL API Key
                 </Label>
+                <div className="mt-1 mb-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                  <p className="text-xs text-blue-400">
+                    💡 Tip: Enter your FAL API key here. It will be saved in your browser's localStorage.
+                  </p>
+                </div>
                 <Input
                   id="fal-key"
                   type="password"
@@ -492,7 +594,7 @@ export default function ImageEditor() {
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {conversations.map((conversation) => (
+              {conversations.map((conversation: Conversation) => (
                 <div
                   key={conversation.id}
                   className={`p-3 rounded-lg cursor-pointer mb-2 group hover:bg-zinc-800/80 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${
@@ -715,15 +817,15 @@ export default function ImageEditor() {
               </div>
 
               <div className="absolute bottom-0 right-0 flex items-center gap-1 text-xs text-zinc-500">
-                <span>Powered by</span>
-                <a
+                <span>Powered by Pixio</span>
+                {/* <a
                   href="https://fal.ai"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:opacity-100 transition-all duration-200 hover:scale-110"
                 >
                   <img src="/logos/fal-logo.svg" alt="fal" className="h-3 opacity-70" />
-                </a>
+                </a> */}
               </div>
             </div>
           </div>

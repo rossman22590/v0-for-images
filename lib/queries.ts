@@ -1,5 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { conversationDB, type Conversation } from "./indexeddb"
+
+// Types
+export interface Conversation {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  generatedImages: GeneratedImage[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ChatMessage {
+  id: string
+  type: "user" | "assistant"
+  content: string
+  image?: string
+  generatedImage?: GeneratedImage
+  timestamp: number
+}
+
+export interface GeneratedImage {
+  id: string
+  url: string
+  prompt: string
+  timestamp: number
+  model: string
+}
 
 // Query keys
 export const queryKeys = {
@@ -12,10 +38,32 @@ export const queryKeys = {
 export function useSettings() {
   return useQuery({
     queryKey: queryKeys.settings,
-    queryFn: () => {
-      const falKey = localStorage.getItem("falKey") || ""
+    queryFn: async () => {
+      const localFalKey = localStorage.getItem("falKey") || ""
       const selectedModel = localStorage.getItem("selectedModel") || "fal-ai/flux-pro/kontext"
-      return { falKey, selectedModel }
+      
+      // Check if there's an environment FAL key available on the server
+      let hasEnvFalKey = false
+      try {
+        const response = await fetch("/api/settings")
+        if (response.ok) {
+          const data = await response.json()
+          hasEnvFalKey = data.hasEnvFalKey
+        }
+      } catch (error) {
+        console.log("[v0] Could not fetch server settings:", error)
+      }
+      
+      // Use localStorage key if available, otherwise use a placeholder to indicate env key exists
+      // The actual env key will be used on the server side
+      const falKey = localFalKey || (hasEnvFalKey ? "using_env_key" : "")
+      
+      return { 
+        falKey, 
+        selectedModel,
+        hasEnvFalKey,
+        localFalKey 
+      }
     },
     staleTime: Number.POSITIVE_INFINITY,
   })
@@ -40,9 +88,14 @@ export function useUpdateSettings() {
 export function useConversations() {
   return useQuery({
     queryKey: queryKeys.conversations,
-    queryFn: async () => {
-      await conversationDB.init()
-      return conversationDB.getAllConversations()
+    queryFn: () => {
+      try {
+        const conversations = localStorage.getItem("conversations")
+        return conversations ? JSON.parse(conversations) : []
+      } catch (error) {
+        console.error("Error reading conversations from localStorage:", error)
+        return []
+      }
     },
   })
 }
@@ -51,9 +104,17 @@ export function useConversations() {
 export function useCurrentConversation(conversationId: string | null) {
   return useQuery({
     queryKey: queryKeys.conversation(conversationId || ""),
-    queryFn: async () => {
+    queryFn: () => {
       if (!conversationId) return null
-      return conversationDB.getConversation(conversationId)
+      try {
+        const conversations = localStorage.getItem("conversations")
+        if (!conversations) return null
+        const allConversations = JSON.parse(conversations)
+        return allConversations.find((conv: Conversation) => conv.id === conversationId) || null
+      } catch (error) {
+        console.error("Error reading conversation from localStorage:", error)
+        return null
+      }
     },
     enabled: !!conversationId,
   })
@@ -65,8 +126,23 @@ export function useSaveConversation() {
 
   return useMutation({
     mutationFn: async (conversation: Conversation) => {
-      await conversationDB.saveConversation(conversation)
-      return conversation
+      try {
+        const conversations = localStorage.getItem("conversations")
+        const allConversations = conversations ? JSON.parse(conversations) : []
+        
+        const existingIndex = allConversations.findIndex((conv: Conversation) => conv.id === conversation.id)
+        if (existingIndex >= 0) {
+          allConversations[existingIndex] = conversation
+        } else {
+          allConversations.push(conversation)
+        }
+        
+        localStorage.setItem("conversations", JSON.stringify(allConversations))
+        return conversation
+      } catch (error) {
+        console.error("Error saving conversation to localStorage:", error)
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations })
@@ -79,20 +155,30 @@ export function useDeleteConversation() {
 
   return useMutation({
     mutationFn: async (conversationId: string) => {
-      console.log("[v0] Deleting conversation from database:", conversationId)
-      await conversationDB.deleteConversation(conversationId)
-      console.log("[v0] Successfully deleted from database:", conversationId)
-      return conversationId
+      try {
+        console.log("[v0] Deleting conversation from localStorage:", conversationId)
+        const conversations = localStorage.getItem("conversations")
+        if (conversations) {
+          const allConversations = JSON.parse(conversations)
+          const filteredConversations = allConversations.filter((conv: Conversation) => conv.id !== conversationId)
+          localStorage.setItem("conversations", JSON.stringify(filteredConversations))
+        }
+        console.log("[v0] Successfully deleted from localStorage:", conversationId)
+        return conversationId
+      } catch (error) {
+        console.error("Error deleting conversation from localStorage:", error)
+        throw error
+      }
     },
-    onSuccess: async (conversationId) => {
+    onSuccess: (conversationId) => {
       console.log("[v0] Invalidating queries after delete:", conversationId)
       queryClient.removeQueries({ queryKey: queryKeys.conversation(conversationId) })
-      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations })
-      await queryClient.refetchQueries({ queryKey: queryKeys.conversations, type: "active" })
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations })
       // Force immediate cache update
-      queryClient.setQueryData(queryKeys.conversations, (oldData: Conversation[] | undefined) => {
-        if (!oldData) return []
-        return oldData.filter((conv) => conv.id !== conversationId)
+      queryClient.setQueryData(queryKeys.conversations, (oldData: unknown) => {
+        const conversations = oldData as Conversation[] | undefined
+        if (!conversations) return []
+        return conversations.filter((conv) => conv.id !== conversationId)
       })
     },
     onError: (error) => {
@@ -116,14 +202,27 @@ export function useGenerateImage() {
       imageUrl: string
       model: string
     }) => {
+      // Don't send the placeholder "using_env_key" string - let the server use the env variable
+      const requestBody = {
+        prompt,
+        imageUrl,
+        model,
+        // Only include falKey if it's a real key from localStorage, not the env placeholder
+        ...(falKey && falKey !== "using_env_key" ? { falKey } : {})
+      }
+      
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ falKey, prompt, imageUrl, model }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to generate image")
+        const errorData = await response.json().catch(() => ({}))
+        if (response.status === 401 && errorData.isAuthError) {
+          throw new Error(errorData.error || "Authentication failed. Please check your FAL API key.")
+        }
+        throw new Error(errorData.error || "Failed to generate image")
       }
 
       return response.json()
